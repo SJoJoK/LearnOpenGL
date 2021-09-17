@@ -48,11 +48,47 @@ int main()
     glViewport(0, 0, screenWidth, screenHeight);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     float vertices[] = {
-        //     ---- 位置 ----       ---- 颜色 ----     - 纹理坐标 -
-             0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
-             0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
-            -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
-            -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // 左上
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
     float texCoords[] = {
     0.0f, 0.0f, // 左下角
@@ -63,6 +99,19 @@ int main()
         0, 1, 3, // 第一个三角形
         1, 2, 3  // 第二个三角形
     };
+    glm::vec3 cubePositions[] = {
+      glm::vec3(0.0f,  0.0f,  0.0f),
+      glm::vec3(2.0f,  5.0f, -15.0f),
+      glm::vec3(-1.5f, -2.2f, -2.5f),
+      glm::vec3(-3.8f, -2.0f, -12.3f),
+      glm::vec3(2.4f, -0.4f, -3.5f),
+      glm::vec3(-1.7f,  3.0f, -7.5f),
+      glm::vec3(1.3f, -2.0f, -2.5f),
+      glm::vec3(1.5f,  2.0f, -2.5f),
+      glm::vec3(1.5f,  0.2f, -1.5f),
+      glm::vec3(-1.3f,  1.0f, -1.5f)
+        };
+    
     Shader ourShader("vshader.glsl", "fshader.glsl");
 
     int nrAttributes;
@@ -139,30 +188,31 @@ int main()
         3,//顶点属性的大小，一个有几个值
         GL_FLOAT,//数据类型
         GL_FALSE,//是否归一
-        8 * sizeof(float),//步长，连续的顶点属性组之间的间隔
+        5 * sizeof(float),//步长，连续的顶点属性组之间的间隔
         (void*)0//数据距离缓冲起始位置的偏移量
     );
     glEnableVertexAttribArray(0);//启动顶点属性
 
-    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,8 * sizeof(float),(void*)(3*sizeof(float)));
-    glEnableVertexAttribArray(1);
+    //glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,8 * sizeof(float),(void*)(3*sizeof(float)));
+    //glEnableVertexAttribArray(1);
 
-    glVertexAttribPointer(2,2,GL_FLOAT, GL_FALSE,8 * sizeof(float),(void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2,2,GL_FLOAT, GL_FALSE,5 * sizeof(float),(void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
     ourShader.use();
     ourShader.setInt("texture1", 0);
     ourShader.setInt("texture2", 1);
 
-    glm::mat4 model;
-    model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
+    glm::mat4 Identity;
+    glm::mat4 model;
     glm::mat4 projection;
     projection = glm::perspective(glm::radians(45.0f), 1.0f*screenWidth / screenHeight, 0.1f, 100.0f);
     glm::mat4 view;
     // 注意，我们将矩阵向我们要进行移动场景的反方向移动。
     view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
 
+    glEnable(GL_DEPTH_TEST);
     while (!glfwWindowShouldClose(window))
     {
         //Inputasd
@@ -171,9 +221,8 @@ int main()
         //Render
         //Clear
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        //ShaderProgram & VAO||EBO
-        ourShader.setMat4("model", model);
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        //ShaderProgram & VAO||EBO 
         ourShader.setMat4("view", view);
         ourShader.setMat4("projection", projection);
         glActiveTexture(GL_TEXTURE0); // 在绑定纹理之前先激活纹理单元
@@ -181,7 +230,15 @@ int main()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, texture2);
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        for (int i = 0; i < 10; i++)
+        {
+            model = glm::translate(Identity, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, (float)glm::radians(angle)* (float)glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
+            ourShader.setMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
         //PollEvents and Swap
         glfwPollEvents();
