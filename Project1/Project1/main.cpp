@@ -1,8 +1,18 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "shader.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include "shader.h"
 #include "stb_image.h"
+using namespace glm;
+using namespace std;
+ostream& operator<<(std::ostream& out, const glm::vec4& v)
+{
+    out << '(' << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ')' << endl;
+    return out;
+}
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
@@ -31,6 +41,7 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+    
     glViewport(0, 0, 800, 600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     float vertices[] = {
@@ -139,6 +150,7 @@ int main()
     ourShader.use();
     ourShader.setInt("texture1", 0);
     ourShader.setInt("texture2", 1);
+    
     while (!glfwWindowShouldClose(window))
     {
         //Input
@@ -149,7 +161,10 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         //ShaderProgram & VAO||EBO
-
+        glm::mat4 trans;
+        trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
+        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+        ourShader.setMat4("transform", trans);
         glActiveTexture(GL_TEXTURE0); // 在绑定纹理之前先激活纹理单元
         glBindTexture(GL_TEXTURE_2D, texture1);
         glActiveTexture(GL_TEXTURE1);
