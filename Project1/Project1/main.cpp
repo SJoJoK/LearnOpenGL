@@ -68,9 +68,10 @@ int main()
     glGenBuffers(1, &EBO);
 
     //Texture
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    unsigned int texture1,texture2;
+    glGenTextures(1, &texture1);
+    glGenTextures(1, &texture2);
+    glBindTexture(GL_TEXTURE_2D, texture1);
     // 为当前绑定的纹理对象设置环绕、过滤方式
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -78,6 +79,7 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // 加载并生成纹理
     int width, height, nrChannels;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load("container.jpg", &width, &height, &nrChannels, 0);
     if (data)
     {
@@ -90,6 +92,26 @@ int main()
     }
     stbi_image_free(data);
     
+    glBindTexture(GL_TEXTURE_2D, texture2);
+    // 为当前绑定的纹理对象设置环绕、过滤方式
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // 加载并生成纹理
+    stbi_set_flip_vertically_on_load(true);
+    data = stbi_load("awesomeface.png", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
     // 1. 绑定VAO
     glBindVertexArray(VAO);
     // 2. 把顶点数组复制到缓冲中供OpenGL使用
@@ -107,36 +129,31 @@ int main()
         (void*)0//数据距离缓冲起始位置的偏移量
     );
     glEnableVertexAttribArray(0);//启动顶点属性
-    glVertexAttribPointer(1,//要配置的顶点属性
-        3,//顶点属性的大小，一个有几个值
-        GL_FLOAT,//数据类型
-        GL_FALSE,//是否归一
-        8 * sizeof(float),//步长，连续的顶点属性组之间的间隔
-        (void*)(3*sizeof(float))//数据距离缓冲起始位置的偏移量
-    );
-    glEnableVertexAttribArray(1);//启动顶点属性
-    glVertexAttribPointer(2,//要配置的顶点属性
-        2,//顶点属性的大小，一个有几个值
-        GL_FLOAT,//数据类型
-        GL_FALSE,//是否归一
-        8 * sizeof(float),//步长，连续的顶点属性组之间的间隔
-        (void*)(6 * sizeof(float))//数据距离缓冲起始位置的偏移量
-    );
-    glEnableVertexAttribArray(1);//启动顶点属性
 
+    glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,8 * sizeof(float),(void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2,2,GL_FLOAT, GL_FALSE,8 * sizeof(float),(void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    ourShader.use();
+    ourShader.setInt("texture1", 0);
+    ourShader.setInt("texture2", 1);
     while (!glfwWindowShouldClose(window))
     {
         //Input
         processInput(window);
 
         //Render
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         //Clear
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         //ShaderProgram & VAO||EBO
-        ourShader.use();
 
+        glActiveTexture(GL_TEXTURE0); // 在绑定纹理之前先激活纹理单元
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
