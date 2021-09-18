@@ -46,5 +46,11 @@
     <None Include="fshader.glsl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="lampshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="lightingshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>
