@@ -36,7 +36,21 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+struct Material_Arr
+{
+    float ambient[3] = { 1.0f,0.5f,0.31f };
+    float diffuse[3] = { 1.0f,0.5f,0.31f };
+    float specular[3] = { 0.5f,0.5f,0.5f };
+    float shininess = 32.0f;
+};
+
+struct Light_Arr
+{
+    float ambient[3] = { 0.2f,0.2f,0.2f };
+    float diffuse[3] = { 0.5f,0.5f,0.5f };
+    float specular[3] = { 1.0f,1.0f,1.0f };
+};
+
 int main()
 {
     GLFWwindow* window = my_init();
@@ -132,14 +146,15 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-
-    // 注意，我们将矩阵向我们要进行移动场景的反方向移动。
-    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    Material_Arr material_arr;
+    Light_Arr light_arr;
+    float lamp_radius = 3.f;
+    float lamp_degree = 300.f;
+    float lamp_height = 1.0f;
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -155,32 +170,22 @@ int main()
         ImGui::NewFrame();
         //my window
         {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
+            ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::BulletText("Lamp Attribute");
+            ImGui::SliderFloat("Radius", &lamp_radius, 0.f, 10.f);
+            ImGui::SliderFloat("Degree", &lamp_degree, 0.f, 360.f);
+            ImGui::SliderFloat("Height", &lamp_height, 0.f, 10.f);
+            ImGui::BulletText("Cube Attribute");
+            ImGui::DragFloat3("mAmbient ", material_arr.ambient, 0.05f, 0, 1);
+            ImGui::DragFloat3("mDiffuse ", material_arr.diffuse, 0.05f, 0, 1);
+            ImGui::DragFloat3("mSpecular ", material_arr.specular, 0.05f, 0, 1);
+            ImGui::SliderFloat("shininess", &(material_arr.shininess), 0.f, 256.f);
+            ImGui::BulletText("Light Attribute");
+            ImGui::DragFloat3("lAmbient ", light_arr.ambient, 0.05f, 0, 1);
+            ImGui::DragFloat3("lDiffuse ", light_arr.diffuse, 0.05f, 0, 1);
+            ImGui::DragFloat3("lSpecular ", light_arr.specular, 0.05f, 0, 1);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-        }
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
             ImGui::End();
         }
         ImGui::Render();
@@ -193,15 +198,14 @@ int main()
         //ShaderProgram & VAO||EBO 
         lightingShader.use();  
         lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setVec3("material.ambient", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("material.diffuse", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-        lightingShader.setFloat("material.shininess", 32.0f);
-        lightingShader.setVec3("lightPos", lightPos);
-        lightingShader.setVec3("light.position", lightPos);
-        lightingShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
-        lightingShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f); // 将光照调暗了一些以搭配场景
-        lightingShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("material.ambient", material_arr.ambient);
+        lightingShader.setVec3("material.diffuse", material_arr.diffuse);
+        lightingShader.setVec3("material.specular", material_arr.specular);
+        lightingShader.setFloat("material.shininess", material_arr.shininess);
+        lightingShader.setVec3("light.position", vec3(lamp_radius * cos(glm::radians(lamp_degree)), lamp_height, -1*lamp_radius * sin(glm::radians(lamp_degree))));
+        lightingShader.setVec3("light.ambient", light_arr.ambient);
+        lightingShader.setVec3("light.diffuse", light_arr.diffuse);
+        lightingShader.setVec3("light.specular", light_arr.specular);
         // pass projection matrix to shader (note that in this case it could change every frame)
         projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
         lightingShader.setMat4("projection", projection);
@@ -221,7 +225,8 @@ int main()
         lampShader.use();
         lampShader.setMat4("projection", projection);
         lampShader.setMat4("view", view);
-        model = glm::translate(identity, lightPos);
+        model = glm::rotate(model, glm::radians(lamp_degree), vec3(0, 1, 0));
+        model = glm::translate(model, vec3(lamp_radius, lamp_height, 0));
         model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
         lampShader.setMat4("model", model);
         glBindVertexArray(lightVAO);
