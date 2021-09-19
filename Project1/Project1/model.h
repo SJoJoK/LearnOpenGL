@@ -162,9 +162,10 @@ private:
             // 3. normal maps
             std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
             textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-            // 4. height maps
-            std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-            textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
+            // 4. AO maps
+            std::vector<Texture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT_OCCLUSION, "texture_AO");
+            textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
+
         }
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
@@ -210,9 +211,9 @@ private:
                 {
                     cout << "Got a normal texture!" << endl;
                 }
-                else if (typeName == "texture_height")
+                else if (typeName == "texture_AO")
                 {
-                    cout << "Got a height texture!" << endl;
+                    cout << "Got a AO texture!" << endl;
                 }
             }
         }

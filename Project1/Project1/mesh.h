@@ -63,7 +63,7 @@ public:
         unsigned int diffuseNr = 1;
         unsigned int specularNr = 1;
         unsigned int normalNr = 1;
-        unsigned int heightNr = 1;
+        unsigned int AONr = 1;
         for (unsigned int i = 0; i < textures.size(); i++)
         {
             glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
@@ -85,10 +85,10 @@ public:
                 number = std::to_string(normalNr++); // transfer unsigned int to stream
                 //cout << "Got a normal texture!" << endl;
             }
-            else if (name == "texture_height")
+            else if (name == "texture_AO")
             {
-                number = std::to_string(heightNr++); // transfer unsigned int to stream
-                //cout << "Got a height texture!" << endl;
+                number = std::to_string(AONr++); // transfer unsigned int to stream
+                //cout << "Got a AO texture!" << endl;
             }
 
             // now set the sampler to the correct texture unit

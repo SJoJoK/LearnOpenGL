@@ -12,9 +12,9 @@ struct Material {
     sampler2D texture_normal1;
     sampler2D texture_normal2;
     sampler2D texture_normal3;
-    sampler2D texture_height1;
-    sampler2D texture_height2;
-    sampler2D texture_height3;
+    sampler2D texture_AO1;
+    sampler2D texture_AO2;
+    sampler2D texture_AO3;
 };
 struct Light {
     vec3 position;
