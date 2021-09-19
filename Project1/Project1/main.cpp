@@ -230,45 +230,6 @@ int main()
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 
-    NPRShader.use();
-    NPRShader.setVec3("viewPos", camera.Position);
-    NPRShader.setVec3("material.diffuse", material_arr.diffuse);
-    NPRShader.setVec3("material.specular", material_arr.specular);
-    NPRShader.setFloat("material.shininess", material_arr.shininess);
-    if (plight_arr.bulb_on)
-    {
-        NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
-        NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
-        NPRShader.setVec3("pointLight.specular", plight_arr.specular);
-    }
-    else
-    {
-        NPRShader.setVec3("pointLight.ambient", vec3(0.f));
-        NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
-        NPRShader.setVec3("pointLight.specular", vec3(0.f));
-    }
-    NPRShader.setVec3("pointLight.position", plight_arr.position);
-    NPRShader.setFloat("pointLight.constant", plight_arr.constant);
-    NPRShader.setFloat("pointLight.linear", plight_arr.linear);
-    NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
-    NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
-    NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
-    NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
-    NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
-    NPRShader.setBool("gammaOn", gamma_on);
-    NPRShader.setInt("renderMode", render_mode);
-    // view/projection transformations
-    projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-    view = camera.GetViewMatrix();
-    NPRShader.setMat4("projection", projection);
-    NPRShader.setMat4("view", view);
-
-    // render the loaded model
-    model = identity;
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-    NPRShader.setMat4("model", model);
-    NPRShader.setMat4("normal_mat", transpose(inverse(model)));
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -325,22 +286,25 @@ int main()
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
-        //float near_plane = 1.0f, far_plane = 15.f;
-        //glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        //glm::mat4 lightView = glm::lookAt(-2.f*glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
-        //    glm::vec3(0.0f, 0.0f, 0.0f), 
-        //    glm::vec3(0.0f, 1.0f, 0.0f));
-        //glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-        NPRShader.use();
-        //depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        ourModel.Draw(NPRShader);
+        model = identity;
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+        depthShader.use();
+        float near_plane = 0.1f, far_plane = 30.f;
+        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(//camera.Position,
+            -2.f*glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
+            vec3(0.f),
+            vec3(0.f,1.f,0.f));
+        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+        depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        depthShader.setMat4("model", model);
+        ourModel.Draw(depthShader);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // 2. 像往常一样渲染场景，但这次使用深度贴图
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         postShader.use();
-        postShader.setFloat("near_plane", 0.1f);
-        postShader.setFloat("far_plane", 100.f);
         glBindVertexArray(quadVAO);
         glBindTexture(GL_TEXTURE_2D, depthMap);
         glDrawArrays(GL_TRIANGLES, 0, 6);
