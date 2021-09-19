@@ -183,7 +183,8 @@ int main()
     Light_Arr light_arr;
     PointLight_Arr plight_arr;
     DirLight_Arr dlight_arr;
-    bool gammaOn = false;
+    bool gamma_on = false;
+    int render_mode = 0;
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -216,13 +217,18 @@ int main()
             ImGui::BulletText("Material Attribute");
             ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
             ImGui::BulletText("Display Attribute");
-            ImGui::Checkbox("Gamma Correction ", &gammaOn);
-
+            ImGui::Checkbox("Gamma Correction ", &gamma_on);
+            //—°‘Ò‰÷»æ∑Ω Ω
+            {
+                if (ImGui::Selectable("Render", render_mode == 0))
+                    render_mode = 0;
+                if (ImGui::Selectable("Normal", render_mode == 1))
+                    render_mode = 1;
+            }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
         ImGui::Render();
-
         //Clear
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -256,7 +262,8 @@ int main()
         lightingShader.setVec3("dirLight.ambient", dlight_arr.ambient);
         lightingShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
         lightingShader.setVec3("dirLight.specular", dlight_arr.specular);
-        lightingShader.setBool("gammaOn", gammaOn);
+        lightingShader.setBool("gammaOn", gamma_on);
+        lightingShader.setInt("renderMode", render_mode);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();

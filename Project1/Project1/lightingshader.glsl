@@ -51,7 +51,7 @@ uniform PointLight pointLight;
 uniform Material material;
 uniform bool gammaOn;
 uniform vec3 viewPos;
-
+uniform int renderMode;
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 void main()
@@ -72,7 +72,10 @@ void main()
         float gamma = 2.2;
         result.rgb = pow(result.rgb, vec3(1.0/gamma));
     }
-    FragColor = vec4(result,1.f);
+    if(renderMode==0)
+        FragColor = vec4(result,1.f);
+    else if(renderMode==1)
+        FragColor = vec4((normal+1)/2,1.f);
 }
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
