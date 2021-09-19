@@ -15,7 +15,7 @@
 using namespace glm;
 using namespace std;
 const int SCR_WIDTH = 1600, SCR_HEIGHT = 1200;
-const int SHADOW_WIDTH = 1600, SHADOW_HEIGHT = 1200;
+const int SHADOW_WIDTH = 3200, SHADOW_HEIGHT = 2400;
 ostream& operator<<(std::ostream& out, const glm::vec4& v)
 {
     out << '(' << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ')' << endl;
@@ -293,7 +293,7 @@ int main()
         float near_plane = 0.1f, far_plane = 30.f;
         glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
         glm::mat4 lightView = glm::lookAt(//camera.Position,
-            -2.f*glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
+            -glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
             vec3(0.f),
             vec3(0.f,1.f,0.f));
         glm::mat4 lightSpaceMatrix = lightProjection * lightView;
