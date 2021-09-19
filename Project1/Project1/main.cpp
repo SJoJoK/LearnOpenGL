@@ -14,8 +14,8 @@
 #include "stb_image.h"
 using namespace glm;
 using namespace std;
-int screenWidth = 1200;
-int screenHeight = 900;
+const int SCREEN_WIDTH = 800, SCREEN_HEIGHT = 600;
+const int SHADOW_WIDTH = 1200, SHADOW_HEIGHT = 1200;
 ostream& operator<<(std::ostream& out, const glm::vec4& v)
 {
     out << '(' << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ')' << endl;
@@ -33,8 +33,8 @@ void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
 GLFWwindow* my_init();
 Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
-float lastX = screenWidth / 2.0f;
-float lastY = screenHeight / 2.0f;
+float lastX = SCREEN_WIDTH / 2.0f;
+float lastY = SCREEN_HEIGHT / 2.0f;
 bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -129,7 +129,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
-    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -151,14 +151,14 @@ int main()
         return -1;
     }
 
-    glViewport(0, 0, screenWidth, screenHeight);
+    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
-    Shader lightingShader("vshader.glsl", "lightingshader.glsl");
+    Shader NPRShader("vshader.glsl", "NPRshader.glsl");
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     unsigned int bulb_VBO;
     unsigned int bulb_VAO;
@@ -185,6 +185,26 @@ int main()
     DirLight_Arr dlight_arr;
     bool gamma_on = false;
     int render_mode = 0;
+
+    GLuint depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+
+    GLuint depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -237,46 +257,46 @@ int main()
                                    plight_arr.bulb_height,
                                    -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
         //ShaderProgram & VAO||EBO 
-        lightingShader.use();  
-        lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setVec3("material.diffuse", material_arr.diffuse);
-        lightingShader.setVec3("material.specular", material_arr.specular);
-        lightingShader.setFloat("material.shininess", material_arr.shininess);
+        NPRShader.use();  
+        NPRShader.setVec3("viewPos", camera.Position);
+        NPRShader.setVec3("material.diffuse", material_arr.diffuse);
+        NPRShader.setVec3("material.specular", material_arr.specular);
+        NPRShader.setFloat("material.shininess", material_arr.shininess);
         if (plight_arr.bulb_on)
         {
-            lightingShader.setVec3("pointLight.ambient", plight_arr.ambient);
-            lightingShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
-            lightingShader.setVec3("pointLight.specular", plight_arr.specular);
+            NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
+            NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
+            NPRShader.setVec3("pointLight.specular", plight_arr.specular);
         }
         else
         {
-            lightingShader.setVec3("pointLight.ambient", vec3(0.f));
-            lightingShader.setVec3("pointLight.diffuse", vec3(0.f));
-            lightingShader.setVec3("pointLight.specular", vec3(0.f));
+            NPRShader.setVec3("pointLight.ambient", vec3(0.f));
+            NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
+            NPRShader.setVec3("pointLight.specular", vec3(0.f));
         }
-        lightingShader.setVec3("pointLight.position", plight_arr.position);
-        lightingShader.setFloat("pointLight.constant", plight_arr.constant);
-        lightingShader.setFloat("pointLight.linear", plight_arr.linear);
-        lightingShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
-        lightingShader.setVec3("dirLight.direction", dlight_arr.direction);
-        lightingShader.setVec3("dirLight.ambient", dlight_arr.ambient);
-        lightingShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
-        lightingShader.setVec3("dirLight.specular", dlight_arr.specular);
-        lightingShader.setBool("gammaOn", gamma_on);
-        lightingShader.setInt("renderMode", render_mode);
+        NPRShader.setVec3("pointLight.position", plight_arr.position);
+        NPRShader.setFloat("pointLight.constant", plight_arr.constant);
+        NPRShader.setFloat("pointLight.linear", plight_arr.linear);
+        NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
+        NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
+        NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
+        NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
+        NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
+        NPRShader.setBool("gammaOn", gamma_on);
+        NPRShader.setInt("renderMode", render_mode);
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        lightingShader.setMat4("projection", projection);
-        lightingShader.setMat4("view", view);
+        NPRShader.setMat4("projection", projection);
+        NPRShader.setMat4("view", view);
 
         // render the loaded model
         glm::mat4 model = identity;
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-        lightingShader.setMat4("model", model);
-        lightingShader.setMat4("normal_mat", transpose(inverse(model)));
-        ourModel.Draw(lightingShader);
+        NPRShader.setMat4("model", model);
+        NPRShader.setMat4("normal_mat", transpose(inverse(model)));
+        ourModel.Draw(NPRShader);
 
         if (plight_arr.bulb_on)
         {

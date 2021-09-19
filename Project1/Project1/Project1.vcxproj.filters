@@ -61,7 +61,10 @@
     <None Include="bulbshader.glsl">
       <Filter>Shader</Filter>
     </None>
-    <None Include="lightingshader.glsl">
+    <None Include="NPRshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="PBRshader.glsl">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>
