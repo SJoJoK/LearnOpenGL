@@ -52,6 +52,28 @@ struct Light_Arr
     float specular[3] = { 1.0f,1.0f,1.0f };
 };
 
+struct PointLight_Arr {
+    vec3 position = vec3(10.f, 10.f, 10.f);
+    bool bulb_on = true;
+    float bulb_radius = 3.f;
+    float bulb_degree = 300.f;
+    float bulb_height = 1.0f;
+    float constant = 1.0f;
+    float linear = 0.09f;
+    float quadratic = 0.032f;
+
+    float ambient[3] = { 0.05f,0.05f,0.05f };
+    float diffuse[3] = { 0.8f,0.8f,0.8f };
+    float specular[3] = { 1.0f,1.0f,1.0f };
+};
+
+struct DirLight_Arr {
+    float direction[3] = { -0.2f,-1.0f,-0.3f };
+    float ambient[3] = { 0.05f,0.05f,0.05f };
+    float diffuse[3] = { 0.4f,0.4f,0.4f };
+    float specular[3] = { 0.5f,0.5f,0.5f };
+};
+
 int main()
 {
     GLFWwindow* window = my_init();
@@ -101,7 +123,7 @@ int main()
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
     };
     Shader lightingShader("vshader.glsl", "lightingshader.glsl");
-    Shader lampShader("vshader.glsl", "lampshader.glsl");
+    Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     glm::mat4 identity;
     glm::mat4 model;
     glm::mat4 projection;
@@ -155,9 +177,8 @@ int main()
 
     Material_Arr material_arr;
     Light_Arr light_arr;
-    float lamp_radius = 3.f;
-    float lamp_degree = 300.f;
-    float lamp_height = 1.0f;
+    PointLight_Arr plight_arr;
+    DirLight_Arr dlight_arr;
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -174,19 +195,24 @@ int main()
         //my window
         {
             ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::BulletText("Lamp Attribute");
-            ImGui::SliderFloat("Radius", &lamp_radius, 0.f, 10.f);
-            ImGui::SliderFloat("Degree", &lamp_degree, 0.f, 360.f);
-            ImGui::SliderFloat("Height", &lamp_height, 0.f, 10.f);
+            ImGui::BulletText("Bulb Attribute");
+            ImGui::Checkbox("isOn ", &(plight_arr.bulb_on));
+            ImGui::SliderFloat("Radius ", &(plight_arr.bulb_radius), 0.f, 10.f);
+            ImGui::SliderFloat("Degree ", &(plight_arr.bulb_degree), 0.f, 360.f);
+            ImGui::SliderFloat("Height ", &(plight_arr.bulb_height), 0.f, 10.f);
+            ImGui::DragFloat3("bAmbient ", plight_arr.ambient, 0.05f, 0, 1);
+            ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
+            ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
             ImGui::BulletText("Cube Attribute");
             ImGui::DragFloat3("mAmbient ", material_arr.ambient, 0.05f, 0, 1);
             ImGui::DragFloat3("mDiffuse ", material_arr.diffuse, 0.05f, 0, 1);
             ImGui::DragFloat3("mSpecular ", material_arr.specular, 0.05f, 0, 1);
             ImGui::SliderFloat("shininess", &(material_arr.shininess), 0.f, 256.f);
-            ImGui::BulletText("Light Attribute");
-            ImGui::DragFloat3("lAmbient ", light_arr.ambient, 0.05f, 0, 1);
-            ImGui::DragFloat3("lDiffuse ", light_arr.diffuse, 0.05f, 0, 1);
-            ImGui::DragFloat3("lSpecular ", light_arr.specular, 0.05f, 0, 1);
+            ImGui::BulletText("Sun Attribute");
+            ImGui::DragFloat3("sdirection ", dlight_arr.direction, 0.05f, 0, 1);
+            ImGui::DragFloat3("sAmbient ", dlight_arr.ambient, 0.05f, 0, 1);
+            ImGui::DragFloat3("sDiffuse ", dlight_arr.diffuse, 0.05f, 0, 1);
+            ImGui::DragFloat3("sSpecular ", dlight_arr.specular, 0.05f, 0, 1);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
@@ -197,7 +223,9 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-
+        plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
+                                   plight_arr.bulb_height,
+                                   -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
         //ShaderProgram & VAO||EBO 
         lightingShader.use();  
         lightingShader.setVec3("viewPos", camera.Position);
@@ -207,11 +235,26 @@ int main()
         lightingShader.setInt("material.diffuse_m", 0);
         lightingShader.setInt("material.specular_m", 1);
         lightingShader.setFloat("material.shininess", material_arr.shininess);
-        lightingShader.setVec3("light.position", vec3(lamp_radius * cos(glm::radians(lamp_degree)), lamp_height, -1*lamp_radius * sin(glm::radians(lamp_degree))));
-        lightingShader.setVec3("light.ambient", light_arr.ambient);
-        lightingShader.setVec3("light.diffuse", light_arr.diffuse);
-        lightingShader.setVec3("light.specular", light_arr.specular);
-
+        if (plight_arr.bulb_on)
+        {
+            lightingShader.setVec3("pointLight.ambient", plight_arr.ambient);
+            lightingShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
+            lightingShader.setVec3("pointLight.specular", plight_arr.specular);
+        }
+        else
+        {
+            lightingShader.setVec3("pointLight.ambient", vec3(0.f));
+            lightingShader.setVec3("pointLight.diffuse", vec3(0.f));
+            lightingShader.setVec3("pointLight.specular", vec3(0.f));
+        }
+        lightingShader.setVec3("pointLight.position", plight_arr.position);
+        lightingShader.setFloat("pointLight.constant", plight_arr.constant);
+        lightingShader.setFloat("pointLight.linear", plight_arr.linear);
+        lightingShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
+        lightingShader.setVec3("dirLight.direction", dlight_arr.direction);
+        lightingShader.setVec3("dirLight.ambient", dlight_arr.ambient);
+        lightingShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
+        lightingShader.setVec3("dirLight.specular", dlight_arr.specular);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, diffuseMap);
 
@@ -232,16 +275,18 @@ int main()
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        lampShader.use();
-        lampShader.setMat4("projection", projection);
-        lampShader.setMat4("view", view);
-        model = glm::rotate(model, glm::radians(lamp_degree), vec3(0, 1, 0));
-        model = glm::translate(model, vec3(lamp_radius, lamp_height, 0));
-        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        lampShader.setMat4("model", model);
-        glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
+        if (plight_arr.bulb_on)
+        {
+            bulbShader.use();
+            bulbShader.setVec3("bulbColor", plight_arr.diffuse);
+            bulbShader.setMat4("projection", projection);
+            bulbShader.setMat4("view", view);
+            model = glm::translate(model, plight_arr.position);
+            model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+            bulbShader.setMat4("model", model);
+            glBindVertexArray(lightVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         //PollEvents and Swap

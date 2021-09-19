@@ -158,7 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="fshader.glsl" />
-    <None Include="lampshader.glsl" />
+    <None Include="bulbshader.glsl" />
     <None Include="lightingshader.glsl" />
     <None Include="vshader.glsl" />
   </ItemGroup>

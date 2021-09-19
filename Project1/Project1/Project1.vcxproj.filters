@@ -52,7 +52,7 @@
     <None Include="fshader.glsl">
       <Filter>Shader</Filter>
     </None>
-    <None Include="lampshader.glsl">
+    <None Include="bulbshader.glsl">
       <Filter>Shader</Filter>
     </None>
     <None Include="lightingshader.glsl">
