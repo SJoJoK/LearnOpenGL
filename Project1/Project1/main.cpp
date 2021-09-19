@@ -80,50 +80,6 @@ int main()
 {
     GLFWwindow* window = my_init();
     glEnable(GL_DEPTH_TEST);
-    float vertices[] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    };
     Shader lightingShader("vshader.glsl", "lightingshader.glsl");
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     glm::mat4 identity;
@@ -131,52 +87,8 @@ int main()
     glm::mat4 projection;
     glm::mat4 view;
     glm::mat4 normal_mat;
-
-    //VBO
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-
-    //VAO
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    unsigned int lightVAO;
-    glGenVertexArrays(1, &lightVAO);
-
-    // 1. 绑定VAO
-    glBindVertexArray(VAO);
-    // 2. 把顶点数组复制到缓冲中供OpenGL使用
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // 3. 复制我们的索引数组到一个索引缓冲中，供OpenGL使用
-    // 4. 设置顶点属性指针
-    glVertexAttribPointer(0,//要配置的顶点属性
-        3,//顶点属性的大小，一个有几个值
-        GL_FLOAT,//数据类型
-        GL_FALSE,//是否归一
-        8 * sizeof(float),//步长，连续的顶点属性组之间的间隔
-        (void*)0//数据距离缓冲起始位置的偏移量
-    );
-    glEnableVertexAttribArray(0);//启动顶点属性
-
-
-    glVertexAttribPointer(1,3,GL_FLOAT, GL_FALSE,8 * sizeof(float),(void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glBindVertexArray(lightVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    unsigned int diffuseMap = loadTexture("container2.png");
-    unsigned int specularMap = loadTexture("container2_specular.png");
-
-    bool show_demo_window = true;
-    bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
+    Model ourModel("D:\\Assets\\nanosuit\\nanosuit.obj");
     Material_Arr material_arr;
     Light_Arr light_arr;
     PointLight_Arr plight_arr;
@@ -234,8 +146,6 @@ int main()
         lightingShader.setVec3("material.ambient", material_arr.ambient);
         lightingShader.setVec3("material.diffuse", material_arr.diffuse);
         lightingShader.setVec3("material.specular", material_arr.specular);
-        lightingShader.setInt("material.diffuse_m", 0);
-        lightingShader.setInt("material.specular_m", 1);
         lightingShader.setFloat("material.shininess", material_arr.shininess);
         if (plight_arr.bulb_on)
         {
@@ -257,25 +167,19 @@ int main()
         lightingShader.setVec3("dirLight.ambient", dlight_arr.ambient);
         lightingShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
         lightingShader.setVec3("dirLight.specular", dlight_arr.specular);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, diffuseMap);
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, specularMap);
-
-        projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
+        // view/projection transformations
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
         lightingShader.setMat4("projection", projection);
-
-        view = camera.GetViewMatrix();
         lightingShader.setMat4("view", view);
 
-        model = identity;
+        // render the loaded model
+        glm::mat4 model = identity;
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
         lightingShader.setMat4("model", model);
-
-        normal_mat = transpose(inverse(model));
-        lightingShader.setMat4("normal_mat", normal_mat);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        ourModel.Draw(lightingShader);
 
         if (plight_arr.bulb_on)
         {
@@ -286,7 +190,6 @@ int main()
             model = glm::translate(model, plight_arr.position);
             model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
             bulbShader.setMat4("model", model);
-            glBindVertexArray(lightVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -295,9 +198,6 @@ int main()
         glfwPollEvents();
         glfwSwapBuffers(window);
     }
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteVertexArrays(1, &lightVAO);
-    glDeleteBuffers(1, &VBO);
     glfwTerminate();
     return 0;
 }
