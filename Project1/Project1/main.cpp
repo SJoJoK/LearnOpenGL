@@ -70,7 +70,7 @@ struct PointLight_Arr {
 };
 
 struct DirLight_Arr {
-    float direction[3] = { -0.2f,-1.0f,-0.3f };
+    float direction[3] = { 0.f,0.f,-1.0f };
     float ambient[3] = { 0.05f,0.05f,0.05f };
     float diffuse[3] = { 0.4f,0.4f,0.4f };
     float specular[3] = { 0.5f,0.5f,0.5f };
@@ -304,10 +304,6 @@ int main()
         // 2. 像往常一样渲染场景，但这次使用深度贴图
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        postShader.use();
-        glBindVertexArray(quadVAO);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         //ShaderProgram & VAO||EBO 
         NPRShader.use();  
@@ -327,6 +323,7 @@ int main()
             NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
             NPRShader.setVec3("pointLight.specular", vec3(0.f));
         }
+        NPRShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
         NPRShader.setVec3("pointLight.position", plight_arr.position);
         NPRShader.setFloat("pointLight.constant", plight_arr.constant);
         NPRShader.setFloat("pointLight.linear", plight_arr.linear);
@@ -349,7 +346,10 @@ int main()
         model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
         NPRShader.setMat4("model", model);
         NPRShader.setMat4("normal_mat", transpose(inverse(model)));
-        //ourModel.Draw(NPRShader);
+        glActiveTexture(GL_TEXTURE12);
+        NPRShader.setInt("shadowMap", 12);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        ourModel.Draw(NPRShader);
 
         if (plight_arr.bulb_on)
         {
