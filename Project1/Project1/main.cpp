@@ -14,8 +14,8 @@
 #include "stb_image.h"
 using namespace glm;
 using namespace std;
-const int SCREEN_WIDTH = 800, SCREEN_HEIGHT = 600;
-const int SHADOW_WIDTH = 1200, SHADOW_HEIGHT = 1200;
+const int SCR_WIDTH = 1600, SCR_HEIGHT = 1200;
+const int SHADOW_WIDTH = 1600, SHADOW_HEIGHT = 1200;
 ostream& operator<<(std::ostream& out, const glm::vec4& v)
 {
     out << '(' << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ')' << endl;
@@ -33,8 +33,8 @@ void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
 GLFWwindow* my_init();
 Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
-float lastX = SCREEN_WIDTH / 2.0f;
-float lastY = SCREEN_HEIGHT / 2.0f;
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
@@ -121,6 +121,16 @@ float bulb_vertices[] = {
     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
 };
 
+float quad_vertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+};
 int main()
 {
     glfwInit();
@@ -129,7 +139,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
-    GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -151,7 +161,7 @@ int main()
         return -1;
     }
 
-    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
@@ -160,6 +170,8 @@ int main()
     glEnable(GL_MULTISAMPLE);
     Shader NPRShader("vshader.glsl", "NPRshader.glsl");
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
+    Shader depthShader("depthshader.glsl", "nullshader.glsl");
+    Shader postShader("postVshader.glsl", "postFshader.glsl");
     unsigned int bulb_VBO;
     unsigned int bulb_VAO;
     glGenBuffers(1, &bulb_VBO);
@@ -168,9 +180,21 @@ int main()
     glGenVertexArrays(1, &bulb_VAO);
     glBindVertexArray(bulb_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, bulb_VBO);
-    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // screen quad VAO
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
     glm::mat4 identity;
     glm::mat4 model;
     glm::mat4 projection;
@@ -188,7 +212,7 @@ int main()
 
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
-
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     GLuint depthMap;
     glGenTextures(1, &depthMap);
     glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -198,13 +222,53 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+
+    NPRShader.use();
+    NPRShader.setVec3("viewPos", camera.Position);
+    NPRShader.setVec3("material.diffuse", material_arr.diffuse);
+    NPRShader.setVec3("material.specular", material_arr.specular);
+    NPRShader.setFloat("material.shininess", material_arr.shininess);
+    if (plight_arr.bulb_on)
+    {
+        NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
+        NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
+        NPRShader.setVec3("pointLight.specular", plight_arr.specular);
+    }
+    else
+    {
+        NPRShader.setVec3("pointLight.ambient", vec3(0.f));
+        NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
+        NPRShader.setVec3("pointLight.specular", vec3(0.f));
+    }
+    NPRShader.setVec3("pointLight.position", plight_arr.position);
+    NPRShader.setFloat("pointLight.constant", plight_arr.constant);
+    NPRShader.setFloat("pointLight.linear", plight_arr.linear);
+    NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
+    NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
+    NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
+    NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
+    NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
+    NPRShader.setBool("gammaOn", gamma_on);
+    NPRShader.setInt("renderMode", render_mode);
+    // view/projection transformations
+    projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    view = camera.GetViewMatrix();
+    NPRShader.setMat4("projection", projection);
+    NPRShader.setMat4("view", view);
+
+    // render the loaded model
+    model = identity;
+    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+    NPRShader.setMat4("model", model);
+    NPRShader.setMat4("normal_mat", transpose(inverse(model)));
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -256,6 +320,31 @@ int main()
         plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
                                    plight_arr.bulb_height,
                                    -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
+
+        // 1. 首选渲染深度贴图
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        //float near_plane = 1.0f, far_plane = 15.f;
+        //glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        //glm::mat4 lightView = glm::lookAt(-2.f*glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
+        //    glm::vec3(0.0f, 0.0f, 0.0f), 
+        //    glm::vec3(0.0f, 1.0f, 0.0f));
+        //glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+        NPRShader.use();
+        //depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        ourModel.Draw(NPRShader);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // 2. 像往常一样渲染场景，但这次使用深度贴图
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        postShader.use();
+        postShader.setFloat("near_plane", 0.1f);
+        postShader.setFloat("far_plane", 100.f);
+        glBindVertexArray(quadVAO);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
         //ShaderProgram & VAO||EBO 
         NPRShader.use();  
         NPRShader.setVec3("viewPos", camera.Position);
@@ -285,7 +374,7 @@ int main()
         NPRShader.setBool("gammaOn", gamma_on);
         NPRShader.setInt("renderMode", render_mode);
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         NPRShader.setMat4("projection", projection);
         NPRShader.setMat4("view", view);
@@ -296,7 +385,7 @@ int main()
         model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
         NPRShader.setMat4("model", model);
         NPRShader.setMat4("normal_mat", transpose(inverse(model)));
-        ourModel.Draw(NPRShader);
+        //ourModel.Draw(NPRShader);
 
         if (plight_arr.bulb_on)
         {
@@ -309,7 +398,7 @@ int main()
             model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
             bulbShader.setMat4("model", model);
             glBindVertexArray(bulb_VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            //glDrawArrays(GL_TRIANGLES, 0, 36);
         }
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

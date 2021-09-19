@@ -67,5 +67,17 @@
     <None Include="PBRshader.glsl">
       <Filter>Shader</Filter>
     </None>
+    <None Include="depthshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="nullshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="postVshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="postFshader.glsl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

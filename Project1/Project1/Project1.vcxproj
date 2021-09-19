@@ -162,10 +162,14 @@
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="depthshader.glsl" />
     <None Include="fshader.glsl" />
     <None Include="bulbshader.glsl" />
     <None Include="NPRshader.glsl" />
+    <None Include="nullshader.glsl" />
     <None Include="PBRshader.glsl" />
+    <None Include="postFshader.glsl" />
+    <None Include="postVshader.glsl" />
     <None Include="vshader.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
