@@ -80,8 +80,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\Programs\vcpkg\packages\imgui_x64-windows\include;D:\Programming\OpenGL\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Programs\vcpkg\packages\imgui_x64-windows\lib;D:\Programming\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Programs\vcpkg\installed\x64-windows\include;D:\Programming\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Programs\vcpkg\installed\x64-windows\lib;D:\Programming\OpenGL\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -125,7 +125,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>imgui.lib;opengl32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>imgui.lib;opengl32.lib;glfw3.lib;assimp-vc142-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
