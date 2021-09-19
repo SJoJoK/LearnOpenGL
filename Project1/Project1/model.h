@@ -198,6 +198,22 @@ private:
                 texture.path = str.C_Str();
                 textures.push_back(texture);
                 textures_loaded.push_back(texture);  // store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
+                if (typeName == "texture_diffuse")
+                {
+                    cout << "Got a diffuse texture!" << endl;
+                }
+                else if (typeName == "texture_specular")
+                {
+                    cout << "Got a specular texture!" << endl;
+                }
+                else if (typeName == "texture_normal")
+                {
+                    cout << "Got a normal texture!" << endl;
+                }
+                else if (typeName == "texture_height")
+                {
+                    cout << "Got a height texture!" << endl;
+                }
             }
         }
         return textures;

@@ -71,13 +71,25 @@ public:
             string number;
             string name = textures[i].type;
             if (name == "texture_diffuse")
+            {
                 number = std::to_string(diffuseNr++);
+                //cout << "Got a diffuse texture!" << endl;
+            }
             else if (name == "texture_specular")
+            {
                 number = std::to_string(specularNr++); // transfer unsigned int to stream
+                //cout << "Got a specular texture!" << endl;
+            }
             else if (name == "texture_normal")
+            {
                 number = std::to_string(normalNr++); // transfer unsigned int to stream
+                //cout << "Got a normal texture!" << endl;
+            }
             else if (name == "texture_height")
+            {
                 number = std::to_string(heightNr++); // transfer unsigned int to stream
+                //cout << "Got a height texture!" << endl;
+            }
 
             // now set the sampler to the correct texture unit
             glUniform1i(glGetUniformLocation(shader.ID, ("material."+name + number).c_str()), i);
