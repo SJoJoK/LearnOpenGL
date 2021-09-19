@@ -163,7 +163,7 @@ private:
             std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
             textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
             // 4. AO maps
-            std::vector<Texture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT_OCCLUSION, "texture_AO");
+            std::vector<Texture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_AO");
             textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
 
         }
