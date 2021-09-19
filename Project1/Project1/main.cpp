@@ -14,7 +14,7 @@
 #include "stb_image.h"
 using namespace glm;
 using namespace std;
-const int SCR_WIDTH = 1600, SCR_HEIGHT = 1200;
+int SCR_WIDTH = 800, SCR_HEIGHT = 600;
 const int SHADOW_WIDTH = 3200, SHADOW_HEIGHT = 2400;
 ostream& operator<<(std::ostream& out, const glm::vec4& v)
 {
@@ -72,7 +72,7 @@ struct PointLight_Arr {
 struct DirLight_Arr {
     float direction[3] = { 0.f,0.f,-1.0f };
     float ambient[3] = { 0.05f,0.05f,0.05f };
-    float diffuse[3] = { 0.4f,0.4f,0.4f };
+    float diffuse[3] = { 0.6f,0.6f,0.6f };
     float specular[3] = { 0.5f,0.5f,0.5f };
 };
 
@@ -402,7 +402,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
+    SCR_WIDTH = width;
+    SCR_HEIGHT = height;
 }
 
 
