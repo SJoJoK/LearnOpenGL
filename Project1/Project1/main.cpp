@@ -128,6 +128,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
     GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
@@ -156,6 +157,7 @@ int main()
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
     Shader lightingShader("vshader.glsl", "lightingshader.glsl");
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     unsigned int bulb_VBO;
@@ -181,6 +183,7 @@ int main()
     Light_Arr light_arr;
     PointLight_Arr plight_arr;
     DirLight_Arr dlight_arr;
+    bool gammaOn = false;
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -206,10 +209,14 @@ int main()
             ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
             ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
             ImGui::BulletText("Sun Attribute");
-            ImGui::DragFloat3("sdirection ", dlight_arr.direction, 0.05f, 0, 1);
+            ImGui::DragFloat3("sdirection ", dlight_arr.direction, 0.05f, -1, 1);
             ImGui::DragFloat3("sAmbient ", dlight_arr.ambient, 0.05f, 0, 1);
             ImGui::DragFloat3("sDiffuse ", dlight_arr.diffuse, 0.05f, 0, 1);
             ImGui::DragFloat3("sSpecular ", dlight_arr.specular, 0.05f, 0, 1);
+            ImGui::BulletText("Material Attribute");
+            ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
+            ImGui::BulletText("Display Attribute");
+            ImGui::Checkbox("Gamma Correction ", &gammaOn);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
@@ -226,7 +233,6 @@ int main()
         //ShaderProgram & VAO||EBO 
         lightingShader.use();  
         lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setVec3("material.ambient", material_arr.ambient);
         lightingShader.setVec3("material.diffuse", material_arr.diffuse);
         lightingShader.setVec3("material.specular", material_arr.specular);
         lightingShader.setFloat("material.shininess", material_arr.shininess);
@@ -250,7 +256,7 @@ int main()
         lightingShader.setVec3("dirLight.ambient", dlight_arr.ambient);
         lightingShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
         lightingShader.setVec3("dirLight.specular", dlight_arr.specular);
-
+        lightingShader.setBool("gammaOn", gammaOn);
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
