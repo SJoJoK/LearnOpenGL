@@ -55,14 +55,14 @@ uniform vec3 viewPos;
 uniform int renderMode;
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow);
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
-float ShadowCalculation(vec4 fragPosLightSpace);
+float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace);
 void main()
 {
     vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
-    float shadow = ShadowCalculation(fs_in.FragPosLightSpace);
+    float shadow = ShadowCalculation(dirLight, pointLight, normal, fs_in.FragPosLightSpace);
     // 第一阶段：定向光照
     vec3 result = CalcDirLight(dirLight, normal, viewDir, shadow);
     // 第二阶段：点光源
@@ -114,7 +114,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     specular *= attenuation;
     return (ambient + diffuse + specular);
 }
-float ShadowCalculation(vec4 fragPosLightSpace)
+float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace)
 {
     // 执行透视除法
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -125,7 +125,8 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     // 取得当前片段在光源视角下的深度
     float currentDepth = projCoords.z;
     // 检查当前片段是否在阴影中
-    float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(normal, -dirLight.direction)), 0.005);
+    float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
 
     return shadow;
 }
