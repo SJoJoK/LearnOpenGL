@@ -21,12 +21,6 @@ struct Material {
     sampler2D texture_roughness1;
     sampler2D texture_roughness2;
 };
-struct Light {
-    vec3 position;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-};
 struct DirLight {
     vec3 direction;
     vec3 ambient;
@@ -35,11 +29,9 @@ struct DirLight {
 };
 struct PointLight {
     vec3 position;
-
     float constant;
     float linear;
     float quadratic;
-
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -55,7 +47,9 @@ uniform sampler2D shadowMap;
 uniform DirLight dirLight;
 uniform PointLight pointLight;
 uniform Material material;
+uniform bool shadowOn;
 uniform bool gammaOn;
+uniform bool HDROn;
 uniform vec3 viewPos;
 uniform int renderMode;
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow);
@@ -67,10 +61,16 @@ void main()
     normal = normalize(normal * 2.0 - 1.0);   
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
-    float shadow = ShadowCalculation(dirLight, pointLight, normal, fs_in.FragPosLightSpace);
-    vec3 result = CalcDirLight(dirLight, normal, viewDir, shadow);
-    //result += CalcPointLight(pointLight, normal, fs_in.FragPos, viewDir);
-    //result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
+    float shadow = 0;
+    if(shadowOn)
+    {
+        shadow = ShadowCalculation(dirLight, pointLight, normal, fs_in.FragPosLightSpace);
+    }
+    vec3 result = CalcDirLight(dirLight, normal, viewDir, shadow);  
+    if(HDROn)
+    {
+        result = result / (result + vec3(1.0));
+    }
     if(gammaOn)
     {
         float gamma = 2.2;

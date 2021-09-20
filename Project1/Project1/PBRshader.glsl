@@ -1,33 +1,30 @@
 #version 330 core
-#define PI 3.1415926535897f
 #define RENDER 0
 #define NORMAL 1
 #define AO 2
+#define ALBEDO 3
+#define SPECULAR 4
+#define ROUGHNESS 5
+#define MODEL 0
+const float PI = 3.1415926;
 struct Material {
     vec3 diffuse;
     vec3 specular;
     float shininess;
     sampler2D texture_diffuse1;
     sampler2D texture_diffuse2;
-    sampler2D texture_diffuse3;
     sampler2D texture_specular1;
     sampler2D texture_specular2;
-    sampler2D texture_specular3;
     sampler2D texture_normal1;
     sampler2D texture_normal2;
-    sampler2D texture_normal3;
     sampler2D texture_AO1;
     sampler2D texture_AO2;
-    sampler2D texture_AO3;
     sampler2D texture_roughness1;
     sampler2D texture_roughness2;
-    sampler2D texture_roughness3;
 };
 struct DirLight {
     vec3 direction;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 lightColor;
 };
 struct PointLight {
     vec3 position;
@@ -46,10 +43,12 @@ in VS_OUT {
 } fs_in;
 out vec4 FragColor;
 uniform sampler2D shadowMap;
-uniform DirLight dirLight;
-uniform PointLight pointLight;
+uniform DirLight dirLight_PBR;
+uniform PointLight pointLight_PBR;
 uniform Material material;
+uniform bool shadowOn;
 uniform bool gammaOn;
+uniform bool HDROn;
 uniform vec3 viewPos;
 uniform int renderMode;
 float DistributionGGX(vec3 N, vec3 H, float roughness);
@@ -64,14 +63,26 @@ void main()
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
 
+    float shadow = ShadowCalculation(dirLight_PBR, pointLight_PBR, normal, fs_in.FragPosLightSpace);
+
+    vec3 ao = texture(material.texture_AO1,fs_in.TexCoord).rrr;
+    vec3 albedo = texture(material.texture_diffuse1,fs_in.TexCoord).rgb;
+    vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
+    float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
+
+    vec3 lightDir = -normalize(dirLight_PBR.direction);
+    vec3 halfVec = normalize(viewDir + lightDir);
+
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, albedo, metallic);
-    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
 
-    float NDF = DistributionGGX(N, H, roughness);       
-    float G   = GeometrySmith(N, V, L, roughness);
+    vec3 Lo = vec3(0.0);
+
+    float NDF = DistributionGGX(normal, halfVec, roughness);       
+    float G   = GeometrySmith(normal, viewDir, lightDir, roughness);
     vec3 nominator    = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; 
+    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.001; 
     vec3 specular     = nominator / denominator;
 
     vec3 kS = F;
@@ -79,14 +90,39 @@ void main()
 
     kD *= 1.0 - metallic;
 
-    float NdotL = max(dot(N, L), 0.0);        
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    
+    vec3 radiance = dirLight_PBR.lightColor;
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
     vec3 ambient = vec3(0.03) * albedo * ao;
+
     vec3 result   = ambient + Lo;
-    result = color / (color + vec3(1.0));
-    result = pow(color, vec3(1.0/2.2));
-    FragColor = result;
+    if(shadowOn)
+    {
+        result = ambient + (1-shadow)*Lo;
+    }
+    if(HDROn)
+    {
+        result = result / (result + vec3(1.0));
+    }
+    if(gammaOn)
+    {
+        float gamma = 2.2;
+        result.rgb = pow(result.rgb, vec3(1.0/gamma));
+    }
+    if(renderMode==RENDER)
+        FragColor = vec4(result,1.f);
+    else if(renderMode==NORMAL)
+        FragColor = vec4((normal+1)/2,1.f);
+    else if(renderMode==AO)
+        FragColor = vec4(texture(material.texture_AO1, fs_in.TexCoord).rrr,1);
+    else if(renderMode==ALBEDO)
+        FragColor = vec4(texture(material.texture_diffuse1, fs_in.TexCoord).rgb,1);
+    else if(renderMode==SPECULAR)
+        FragColor = vec4(texture(material.texture_specular1, fs_in.TexCoord).rgb,1);
+    else if(renderMode==ROUGHNESS)
+        FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
 }
 float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace)
 {

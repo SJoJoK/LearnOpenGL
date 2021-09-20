@@ -58,33 +58,33 @@ struct Material_Arr
     float shininess = 32.0f;
 };
 
-struct Light_Arr
-{
-    float ambient[3] = { 0.2f,0.2f,0.2f };
-    float diffuse[3] = { 0.5f,0.5f,0.5f };
-    float specular[3] = { 1.0f,1.0f,1.0f };
-};
 
 struct PointLight_Arr {
     vec3 position = vec3(10.f, 10.f, 10.f);
-    bool bulb_on = true;
+    bool bulb_on = false;
     float bulb_radius = 3.f;
     float bulb_degree = 300.f;
     float bulb_height = 1.0f;
     float constant = 1.0f;
     float linear = 0.09f;
     float quadratic = 0.032f;
-
     float ambient[3] = { 0.05f,0.05f,0.05f };
     float diffuse[3] = { 0.8f,0.8f,0.8f };
     float specular[3] = { 1.0f,1.0f,1.0f };
 };
 
-struct DirLight_Arr {
+struct NPRLight_Arr {
     float direction[3] = { 1.f,-1.f,-1.f };
     float ambient[3] = { 0.35f,0.35f,0.35f };
     float diffuse[3] = { 0.85f,0.85f,0.85f };
     float specular[3] = { 1.f,1.f,1.f };
+    float bright = 0.5f;
+};
+
+struct PBRLight_Arr {
+    float direction[3] = { 1.f,-1.f,-1.f };
+    float color[3] = { 20.f,20.f,20.f };
+    float flux = 10.f;
 };
 
 float bulb_vertices[] = {
@@ -180,9 +180,11 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
     Shader NPRShader("vshader.glsl", "NPRshader.glsl");
+    Shader PBRShader("vshader.glsl", "PBRshader.glsl");
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     Shader depthShader("depthshader.glsl", "nullshader.glsl");
     Shader postShader("postVshader.glsl", "postFshader.glsl");
+    Shader* tureShader = &NPRShader;
     unsigned int bulb_VBO;
     unsigned int bulb_VAO;
     glGenBuffers(1, &bulb_VBO);
@@ -194,18 +196,6 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // screen quad VAO
-    unsigned int quadVAO, quadVBO;
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
     glm::mat4 identity;
     glm::mat4 model;
     glm::mat4 projection;
@@ -216,12 +206,20 @@ int main()
     stbi_set_flip_vertically_on_load(true);
     Model* ourModel = new Model();
     Material_Arr material_arr;
-    Light_Arr light_arr;
     PointLight_Arr plight_arr;
-    DirLight_Arr dlight_arr;
+    NPRLight_Arr NPRlight_arr;
+    PBRLight_Arr PBRlight_arr;
+    Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
+    bool PBR_render;
+    bool NPR_white_dir_light = false;
+    bool PBR_white_dir_light = false;
+    bool sun_on = false;
     bool gamma_on = false;
+    bool HDR_on = false;
+    bool shadow_on = false;
     int render_mode = MESH;
     int model_choose = -1;
+
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -246,8 +244,6 @@ int main()
 
     ImGui::FileBrowser fileDialog;
 
-    Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
-    bool render_mesh;
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -257,52 +253,62 @@ int main()
         processInput(window);
         //Render
         
-        //UI
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        //my window
+        //ImGui
         {
-            ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::BulletText("Bulb Attribute");
-            ImGui::Checkbox("isOn ", &(plight_arr.bulb_on));
-            ImGui::SliderFloat("Radius ", &(plight_arr.bulb_radius), 0.f, 10.f);
-            ImGui::SliderFloat("Degree ", &(plight_arr.bulb_degree), 0.f, 360.f);
-            ImGui::SliderFloat("Height ", &(plight_arr.bulb_height), 0.f, 10.f);
-            ImGui::DragFloat3("bAmbient ", plight_arr.ambient, 0.05f, 0, 1);
-            ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
-            ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
-            ImGui::BulletText("Sun Attribute");
-            ImGui::DragFloat3("sdirection ", dlight_arr.direction, 0.05f, -1, 1);
-            ImGui::DragFloat3("sAmbient ", dlight_arr.ambient, 0.05f, 0, 1);
-            ImGui::DragFloat3("sDiffuse ", dlight_arr.diffuse, 0.05f, 0, 1);
-            ImGui::DragFloat3("sSpecular ", dlight_arr.specular, 0.05f, 0, 1);
-            ImGui::BulletText("Material Attribute");
-            ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
-            ImGui::BulletText("Display Attribute");
-            ImGui::Checkbox("Gamma Correction ", &gamma_on);
-
-            //选择渲染方式
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            //Scene Editor
             {
-                if (ImGui::Selectable("Render", render_mode == RENDER))
-                    render_mode = RENDER;
-                if (ImGui::Selectable("Albedo", render_mode == ALBEDO))
-                    render_mode = ALBEDO;
-                if (ImGui::Selectable("Metallic", render_mode == SPECULAR))
-                    render_mode = SPECULAR;
-                if (ImGui::Selectable("Roughness", render_mode == ROUGHNESS))
-                    render_mode = ROUGHNESS;
-                if (ImGui::Selectable("Normal", render_mode == NORMAL))
-                    render_mode = NORMAL;
-                if (ImGui::Selectable("AO", render_mode == AO))
-                    render_mode = AO;
-                if (ImGui::Selectable("Mesh", render_mode == MESH))
-                    render_mode = MESH;
-
+                ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+                //ImGui::BulletText("Bulb Attribute");
+                //ImGui::Checkbox("Sun on ", &(sun_on));
+                //ImGui::SliderFloat("Radius ", &(plight_arr.bulb_radius), 0.f, 10.f);
+                //ImGui::SliderFloat("Degree ", &(plight_arr.bulb_degree), 0.f, 360.f);
+                //ImGui::SliderFloat("Height ", &(plight_arr.bulb_height), 0.f, 10.f);
+                //ImGui::DragFloat3("bAmbient ", plight_arr.ambient, 0.05f, 0, 1);
+                //ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
+                //ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
+                ImGui::BulletText("NPRLight Attribute");
+                ImGui::Checkbox("nWhite Light", &NPR_white_dir_light);
+                ImGui::DragFloat3("ndirection ", NPRlight_arr.direction, 0.05f, -1, 1);
+                ImGui::DragFloat3("nAmbient ", NPRlight_arr.ambient, 0.05f, 0, 1);
+                ImGui::DragFloat3("nDiffuse ", NPRlight_arr.diffuse, 0.05f, 0, 1);
+                ImGui::DragFloat3("nSpecular ", NPRlight_arr.specular, 0.05f, 0, 1);
+                ImGui::BulletText("PBRLight Attribute");
+                ImGui::Checkbox("pWhite Light", &PBR_white_dir_light);
+                ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
+                ImGui::DragFloat3("pColor ", PBRlight_arr.color, 0.5f, 0.f, 30.f);
+                ImGui::SliderFloat("pFlux ", &(PBRlight_arr.flux), 0.f, 30.f);
+                ImGui::BulletText("Material Attribute");
+                ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
+                ImGui::BulletText("Display Attribute");
+                ImGui::Checkbox("Gamma Correction ", &gamma_on);
+                ImGui::Checkbox("HDR ", &HDR_on);
+                ImGui::Checkbox("Shadow ", &shadow_on);
+                ImGui::BulletText("Render Mode");
+                ImGui::Checkbox("PBR", &PBR_render);
+                //选择渲染方式
+                {
+                    if (ImGui::Selectable("Render", render_mode == RENDER))
+                        render_mode = RENDER;
+                    if (ImGui::Selectable("Albedo", render_mode == ALBEDO))
+                        render_mode = ALBEDO;
+                    if (ImGui::Selectable("Metallic", render_mode == SPECULAR))
+                        render_mode = SPECULAR;
+                    if (ImGui::Selectable("Roughness", render_mode == ROUGHNESS))
+                        render_mode = ROUGHNESS;
+                    if (ImGui::Selectable("Normal", render_mode == NORMAL))
+                        render_mode = NORMAL;
+                    if (ImGui::Selectable("AO", render_mode == AO))
+                        render_mode = AO;
+                    if (ImGui::Selectable("Mesh", render_mode == MESH))
+                        render_mode = MESH;
+                }
+                ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+                ImGui::End();
             }
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-            ImGui::End();
-
+            //Model Editor
             {
                 ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
                 if (ImGui::Button("Model"))
@@ -380,9 +386,8 @@ int main()
                     fileDialog.ClearSelected();
                 }
             }
-            
+            ImGui::Render();
         }
-        ImGui::Render();
         //Clear
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -391,6 +396,7 @@ int main()
             plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
                 plight_arr.bulb_height,
                 -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
+            //Shadow Map
             {
                 // 1. 首选渲染深度贴图
                 glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -398,15 +404,20 @@ int main()
                 glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
                 glClear(GL_DEPTH_BUFFER_BIT);
                 model = identity;
-                model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-                model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
                 depthShader.use();
                 float near_plane = 0.1f, far_plane = 30.f;
                 glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
                 glm::mat4 lightView = glm::lookAt(//camera.Position,
-                    -glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])),
+                    -glm::normalize(vec3(NPRlight_arr.direction[0], NPRlight_arr.direction[1], NPRlight_arr.direction[2])),
                     vec3(0.f),
                     vec3(0.f, 1.f, 0.f));
+                if (PBR_render)
+                {
+                    lightView = glm::lookAt(//camera.Position,
+                        -glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
+                        vec3(0.f),
+                        vec3(0.f, 1.f, 0.f));
+                }
                 lightSpaceMatrix = lightProjection * lightView;
                 depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
                 depthShader.setMat4("model", model);
@@ -416,100 +427,108 @@ int main()
                 glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
-
-            //ShaderProgram & VAO||EBO 
-            NPRShader.use();
+            if (PBR_render)
             {
-                NPRShader.setVec3("viewPos", camera.Position);
-                NPRShader.setVec3("material.diffuse", material_arr.diffuse);
-                NPRShader.setVec3("material.specular", material_arr.specular);
-                NPRShader.setFloat("material.shininess", material_arr.shininess);
+                tureShader = &PBRShader;
+            }
+            else
+            {
+                tureShader = &NPRShader;
+            }
+            //ShaderProgram & VAO||EBO 
+            tureShader->use();
+            {
+                tureShader->setVec3("viewPos", camera.Position);
+                tureShader->setVec3("material.diffuse", material_arr.diffuse);
+                tureShader->setVec3("material.specular", material_arr.specular);
+                tureShader->setFloat("material.shininess", material_arr.shininess);
                 if (plight_arr.bulb_on)
                 {
-                    NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
-                    NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
-                    NPRShader.setVec3("pointLight.specular", plight_arr.specular);
+                    tureShader->setVec3("pointLight.ambient", plight_arr.ambient);
+                    tureShader->setVec3("pointLight.diffuse", plight_arr.diffuse);
+                    tureShader->setVec3("pointLight.specular", plight_arr.specular);
                 }
                 else
                 {
-                    NPRShader.setVec3("pointLight.ambient", vec3(0.f));
-                    NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
-                    NPRShader.setVec3("pointLight.specular", vec3(0.f));
+                    tureShader->setVec3("pointLight.ambient", vec3(0.f));
+                    tureShader->setVec3("pointLight.diffuse", vec3(0.f));
+                    tureShader->setVec3("pointLight.specular", vec3(0.f));
                 }
-                NPRShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-                NPRShader.setVec3("pointLight.position", plight_arr.position);
-                NPRShader.setFloat("pointLight.constant", plight_arr.constant);
-                NPRShader.setFloat("pointLight.linear", plight_arr.linear);
-                NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
-                NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
-                NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
-                NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
-                NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
-                NPRShader.setBool("gammaOn", gamma_on);
-                NPRShader.setInt("renderMode", render_mode);
+                tureShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
+                tureShader->setVec3("pointLight.position", plight_arr.position);
+                tureShader->setFloat("pointLight.constant", plight_arr.constant);
+                tureShader->setFloat("pointLight.linear", plight_arr.linear);
+                tureShader->setFloat("pointLight.quadratic", plight_arr.quadratic);
+                tureShader->setVec3("dirLight.direction", NPRlight_arr.direction);
+                tureShader->setVec3("dirLight.ambient", NPRlight_arr.ambient);
+                tureShader->setVec3("dirLight.diffuse", NPRlight_arr.diffuse);
+                tureShader->setVec3("dirLight.specular", NPRlight_arr.specular);
+                tureShader->setVec3("dirLight_PBR.direction", PBRlight_arr.direction);
+                if (PBR_white_dir_light)
+                {
+                    tureShader->setVec3("dirLight_PBR.lightColor", vec3(PBRlight_arr.flux));
+                }
+                else
+                {
+                    tureShader->setVec3("dirLight_PBR.lightColor", PBRlight_arr.color);
+                }
+                if (NPR_white_dir_light)
+                {
+                    tureShader->setVec3("dirLight.lightColor", vec3(NPRlight_arr.bright));
+                }
+                tureShader->setBool("gammaOn", gamma_on);
+                tureShader->setBool("HDROn", HDR_on);
+                tureShader->setBool("shadowOn", shadow_on);
+                tureShader->setInt("renderMode", render_mode);
                 // view/projection transformations
                 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
                 view = camera.GetViewMatrix();
-                NPRShader.setMat4("projection", projection);
-                NPRShader.setMat4("view", view);
+                tureShader->setMat4("projection", projection);
+                tureShader->setMat4("view", view);
                 // render the loaded model
                 model = identity;
                 model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
                 model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-                NPRShader.setMat4("model", model);
-                NPRShader.setMat4("normal_mat", transpose(inverse(model)));
+                tureShader->setMat4("model", model);
+                tureShader->setMat4("normal_mat", transpose(inverse(model)));
             }
             
             {
                 glActiveTexture(GL_TEXTURE12);
-                NPRShader.setInt("shadowMap", 12);
+                tureShader->setInt("shadowMap", 12);
                 glBindTexture(GL_TEXTURE_2D, depthMap);
 
                 glActiveTexture(GL_TEXTURE0 + ALBEDO);
-                NPRShader.setInt("material.texture_diffuse1", ALBEDO);
+                tureShader->setInt("material.texture_diffuse1", ALBEDO);
                 glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
 
                 glActiveTexture(GL_TEXTURE0 + METALLIC);
-                NPRShader.setInt("material.texture_specular1", METALLIC);
+                tureShader->setInt("material.texture_specular1", METALLIC);
                 glBindTexture(GL_TEXTURE_2D, texture_metallic.id);
 
                 glActiveTexture(GL_TEXTURE0 + ROUGHNESS);
-                NPRShader.setInt("material.texture_roughness1", ROUGHNESS);
+                tureShader->setInt("material.texture_roughness1", ROUGHNESS);
                 glBindTexture(GL_TEXTURE_2D, texture_roughness.id);
 
                 glActiveTexture(GL_TEXTURE0 + NORMAL);
-                NPRShader.setInt("material.texture_normal1", NORMAL);
+                tureShader->setInt("material.texture_normal1", NORMAL);
                 glBindTexture(GL_TEXTURE_2D, texture_normal.id);
 
                 glActiveTexture(GL_TEXTURE0 + AO);
-                NPRShader.setInt("material.texture_AO1", AO);
+                tureShader->setInt("material.texture_AO1", AO);
                 glBindTexture(GL_TEXTURE_2D, texture_AO.id);
             }
 
             if (render_mode == MESH)
             {
-                ourModel->Draw(NPRShader, GL_LINES);
+                ourModel->Draw(*tureShader, GL_LINES);
             }
             else
             {
-                ourModel->Draw(NPRShader);
+                ourModel->Draw(*tureShader);
 
             }
-            if (plight_arr.bulb_on)
-            {
-                bulbShader.use();
-                bulbShader.setVec3("bulbColor", plight_arr.diffuse);
-                bulbShader.setMat4("projection", projection);
-                bulbShader.setMat4("view", view);
-                model = identity;
-                model = glm::translate(model, plight_arr.position);
-                model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-                bulbShader.setMat4("model", model);
-                glBindVertexArray(bulb_VAO);
-                //glDrawArrays(GL_TRIANGLES, 0, 36);
-            }
         }
-        
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         //PollEvents and Swap
         glfwPollEvents();
