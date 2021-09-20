@@ -7,6 +7,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include "imfilebrowser.h"
 #include "mesh.h"
 #include "model.h"
 #include "camera.h"
@@ -15,6 +16,10 @@
 #define RENDER 0
 #define NORMAL 1
 #define AO 2
+#define ALBEDO 3
+#define SPECULAR 4
+#define ROUGHNESS 5
+#define MODEL 0;
 using namespace glm;
 using namespace std;
 int SCR_WIDTH = 1200, SCR_HEIGHT = 900;
@@ -212,7 +217,7 @@ int main()
     DirLight_Arr dlight_arr;
     bool gamma_on = false;
     int render_mode = 0;
-
+    int model_choose = -1;
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -234,6 +239,8 @@ int main()
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+
+    ImGui::FileBrowser fileDialog;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -268,6 +275,7 @@ int main()
             ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
             ImGui::BulletText("Display Attribute");
             ImGui::Checkbox("Gamma Correction ", &gamma_on);
+
             //Ñ¡ÔñäÖÈ¾·½Ê½
             {
                 if (ImGui::Selectable("Render", render_mode == RENDER))
@@ -279,6 +287,49 @@ int main()
             }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
+
+            ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+            if (ImGui::Button("Model"))
+            {
+                fileDialog.Open();
+                model_choose = MODEL;
+            }
+            if (ImGui::Button("Albedo Map"))
+            {
+                fileDialog.Open();
+                model_choose = ALBEDO;
+
+            }
+            if (ImGui::Button("Normal Map"))
+            {
+                fileDialog.Open();
+                model_choose = NORMAL;
+
+            }
+            if (ImGui::Button("Specular Map"))
+            {
+                fileDialog.Open();
+                model_choose = SPECULAR;
+            }
+            if (ImGui::Button("Roughness Map"))
+            {
+                fileDialog.Open();
+                model_choose = ROUGHNESS;
+
+            }
+            if (ImGui::Button("AO Map"))
+            {
+                fileDialog.Open();
+                model_choose = AO;
+
+            }
+            fileDialog.Display();
+
+            if (fileDialog.HasSelected())
+            {
+                std::cout << model_choose<< " filename " << fileDialog.GetSelected().string() << std::endl;
+                fileDialog.ClearSelected();
+            }
         }
         ImGui::Render();
         //Clear
