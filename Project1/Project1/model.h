@@ -31,11 +31,16 @@ public:
     vector<Mesh>    meshes;
     string directory;
     bool gammaCorrection;
-
+    bool loaded;
+    Model()
+    {
+        loaded = false;
+    }
     // constructor, expects a filepath to a 3D model.
     Model(string const& path, bool gamma = false) : gammaCorrection(gamma)
     {
         loadModel(path);
+        loaded = true;
     }
 
     // draws the model, and thus all its meshes
@@ -45,7 +50,6 @@ public:
             meshes[i].Draw(shader);
     }
 
-private:
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
     void loadModel(string const& path)
     {
@@ -63,6 +67,7 @@ private:
 
         // process ASSIMP's root node recursively
         processNode(scene->mRootNode, scene);
+        this->loaded = true;
     }
 
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
@@ -167,7 +172,7 @@ private:
             textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
             // 5. Roughness maps
             std::vector<Texture> RoughnessMaps = loadMaterialTextures(material, aiTextureType_UNKNOWN, "texture_roughness");
-            textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
+            textures.insert(textures.end(), RoughnessMaps.begin(), RoughnessMaps.end());
 
         }
         // return a mesh object created from the extracted mesh data

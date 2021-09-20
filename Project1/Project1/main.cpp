@@ -19,7 +19,7 @@
 #define ALBEDO 3
 #define SPECULAR 4
 #define ROUGHNESS 5
-#define MODEL 0;
+#define MODEL 0
 using namespace glm;
 using namespace std;
 int SCR_WIDTH = 1200, SCR_HEIGHT = 900;
@@ -210,7 +210,7 @@ int main()
     glm::mat4 normal_mat;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     stbi_set_flip_vertically_on_load(true);
-    Model ourModel("D:\\Assets\\backpack\\backpack.obj");
+    Model* ourModel = new Model();
     Material_Arr material_arr;
     Light_Arr light_arr;
     PointLight_Arr plight_arr;
@@ -280,151 +280,169 @@ int main()
             {
                 if (ImGui::Selectable("Render", render_mode == RENDER))
                     render_mode = RENDER;
+                if (ImGui::Selectable("Albedo", render_mode == ALBEDO))
+                    render_mode = ALBEDO;
+                if (ImGui::Selectable("Metallic", render_mode == SPECULAR))
+                    render_mode = SPECULAR;
+                if (ImGui::Selectable("Roughness", render_mode == ROUGHNESS))
+                    render_mode = ROUGHNESS;
                 if (ImGui::Selectable("Normal", render_mode == NORMAL))
                     render_mode = NORMAL;
                 if (ImGui::Selectable("AO", render_mode == AO))
                     render_mode = AO;
+
             }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
 
-            ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
-            if (ImGui::Button("Model"))
             {
-                fileDialog.Open();
-                model_choose = MODEL;
-            }
-            if (ImGui::Button("Albedo Map"))
-            {
-                fileDialog.Open();
-                model_choose = ALBEDO;
+                ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+                if (ImGui::Button("Model"))
+                {
+                    fileDialog.Open();
+                    model_choose = MODEL;
+                }
+                if (ImGui::Button("Albedo Map"))
+                {
+                    fileDialog.Open();
+                    model_choose = ALBEDO;
 
-            }
-            if (ImGui::Button("Normal Map"))
-            {
-                fileDialog.Open();
-                model_choose = NORMAL;
+                }
+                if (ImGui::Button("Normal Map"))
+                {
+                    fileDialog.Open();
+                    model_choose = NORMAL;
 
-            }
-            if (ImGui::Button("Specular Map"))
-            {
-                fileDialog.Open();
-                model_choose = SPECULAR;
-            }
-            if (ImGui::Button("Roughness Map"))
-            {
-                fileDialog.Open();
-                model_choose = ROUGHNESS;
+                }
+                if (ImGui::Button("Specular Map"))
+                {
+                    fileDialog.Open();
+                    model_choose = SPECULAR;
+                }
+                if (ImGui::Button("Roughness Map"))
+                {
+                    fileDialog.Open();
+                    model_choose = ROUGHNESS;
 
-            }
-            if (ImGui::Button("AO Map"))
-            {
-                fileDialog.Open();
-                model_choose = AO;
+                }
+                if (ImGui::Button("AO Map"))
+                {
+                    fileDialog.Open();
+                    model_choose = AO;
 
-            }
-            fileDialog.Display();
+                }
+                fileDialog.Display();
 
-            if (fileDialog.HasSelected())
-            {
-                std::cout << model_choose<< " filename " << fileDialog.GetSelected().string() << std::endl;
-                fileDialog.ClearSelected();
+                if (fileDialog.HasSelected())
+                {
+                    switch (model_choose)
+                    {
+                    case MODEL:
+                    {
+                        ourModel->loadModel(fileDialog.GetSelected().string());
+                    }
+                    }
+                    fileDialog.ClearSelected();
+                }
             }
+            
         }
         ImGui::Render();
         //Clear
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-        plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
-                                   plight_arr.bulb_height,
-                                   -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
-
-        // 1. 首选渲染深度贴图
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        model = identity;
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-        depthShader.use();
-        float near_plane = 0.1f, far_plane = 30.f;
-        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        glm::mat4 lightView = glm::lookAt(//camera.Position,
-            -glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])), 
-            vec3(0.f),
-            vec3(0.f,1.f,0.f));
-        glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-        depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        depthShader.setMat4("model", model);
-        ourModel.Draw(depthShader);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // 2. 像往常一样渲染场景，但这次使用深度贴图
-        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        //ShaderProgram & VAO||EBO 
-        NPRShader.use();  
-        NPRShader.setVec3("viewPos", camera.Position);
-        NPRShader.setVec3("material.diffuse", material_arr.diffuse);
-        NPRShader.setVec3("material.specular", material_arr.specular);
-        NPRShader.setFloat("material.shininess", material_arr.shininess);
-        if (plight_arr.bulb_on)
+        if (ourModel->loaded)
         {
-            NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
-            NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
-            NPRShader.setVec3("pointLight.specular", plight_arr.specular);
-        }
-        else
-        {
-            NPRShader.setVec3("pointLight.ambient", vec3(0.f));
-            NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
-            NPRShader.setVec3("pointLight.specular", vec3(0.f));
-        }
-        NPRShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
-        NPRShader.setVec3("pointLight.position", plight_arr.position);
-        NPRShader.setFloat("pointLight.constant", plight_arr.constant);
-        NPRShader.setFloat("pointLight.linear", plight_arr.linear);
-        NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
-        NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
-        NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
-        NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
-        NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
-        NPRShader.setBool("gammaOn", gamma_on);
-        NPRShader.setInt("renderMode", render_mode);
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        glm::mat4 view = camera.GetViewMatrix();
-        NPRShader.setMat4("projection", projection);
-        NPRShader.setMat4("view", view);
+            plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
+                plight_arr.bulb_height,
+                -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
 
-        // render the loaded model
-        glm::mat4 model = identity;
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-        NPRShader.setMat4("model", model);
-        NPRShader.setMat4("normal_mat", transpose(inverse(model)));
-        glActiveTexture(GL_TEXTURE12);
-        NPRShader.setInt("shadowMap", 12);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        ourModel.Draw(NPRShader);
-
-        if (plight_arr.bulb_on)
-        {
-            bulbShader.use();
-            bulbShader.setVec3("bulbColor", plight_arr.diffuse);
-            bulbShader.setMat4("projection", projection);
-            bulbShader.setMat4("view", view);
+            // 1. 首选渲染深度贴图
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+            glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+            glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+            glClear(GL_DEPTH_BUFFER_BIT);
             model = identity;
-            model = glm::translate(model, plight_arr.position);
-            model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-            bulbShader.setMat4("model", model);
-            glBindVertexArray(bulb_VAO);
-            //glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+            model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+            depthShader.use();
+            float near_plane = 0.1f, far_plane = 30.f;
+            glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+            glm::mat4 lightView = glm::lookAt(//camera.Position,
+                -glm::normalize(vec3(dlight_arr.direction[0], dlight_arr.direction[1], dlight_arr.direction[2])),
+                vec3(0.f),
+                vec3(0.f, 1.f, 0.f));
+            glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+            depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+            depthShader.setMat4("model", model);
+            ourModel->Draw(depthShader);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // 2. 像往常一样渲染场景，但这次使用深度贴图
+            glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            //ShaderProgram & VAO||EBO 
+            NPRShader.use();
+            NPRShader.setVec3("viewPos", camera.Position);
+            NPRShader.setVec3("material.diffuse", material_arr.diffuse);
+            NPRShader.setVec3("material.specular", material_arr.specular);
+            NPRShader.setFloat("material.shininess", material_arr.shininess);
+            if (plight_arr.bulb_on)
+            {
+                NPRShader.setVec3("pointLight.ambient", plight_arr.ambient);
+                NPRShader.setVec3("pointLight.diffuse", plight_arr.diffuse);
+                NPRShader.setVec3("pointLight.specular", plight_arr.specular);
+            }
+            else
+            {
+                NPRShader.setVec3("pointLight.ambient", vec3(0.f));
+                NPRShader.setVec3("pointLight.diffuse", vec3(0.f));
+                NPRShader.setVec3("pointLight.specular", vec3(0.f));
+            }
+            NPRShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+            NPRShader.setVec3("pointLight.position", plight_arr.position);
+            NPRShader.setFloat("pointLight.constant", plight_arr.constant);
+            NPRShader.setFloat("pointLight.linear", plight_arr.linear);
+            NPRShader.setFloat("pointLight.quadratic", plight_arr.quadratic);
+            NPRShader.setVec3("dirLight.direction", dlight_arr.direction);
+            NPRShader.setVec3("dirLight.ambient", dlight_arr.ambient);
+            NPRShader.setVec3("dirLight.diffuse", dlight_arr.diffuse);
+            NPRShader.setVec3("dirLight.specular", dlight_arr.specular);
+            NPRShader.setBool("gammaOn", gamma_on);
+            NPRShader.setInt("renderMode", render_mode);
+            // view/projection transformations
+            glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            glm::mat4 view = camera.GetViewMatrix();
+            NPRShader.setMat4("projection", projection);
+            NPRShader.setMat4("view", view);
+
+            // render the loaded model
+            glm::mat4 model = identity;
+            model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+            model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+            NPRShader.setMat4("model", model);
+            NPRShader.setMat4("normal_mat", transpose(inverse(model)));
+            glActiveTexture(GL_TEXTURE12);
+            NPRShader.setInt("shadowMap", 12);
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+            ourModel->Draw(NPRShader);
+
+            if (plight_arr.bulb_on)
+            {
+                bulbShader.use();
+                bulbShader.setVec3("bulbColor", plight_arr.diffuse);
+                bulbShader.setMat4("projection", projection);
+                bulbShader.setMat4("view", view);
+                model = identity;
+                model = glm::translate(model, plight_arr.position);
+                model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+                bulbShader.setMat4("model", model);
+                glBindVertexArray(bulb_VAO);
+                //glDrawArrays(GL_TRIANGLES, 0, 36);
+            }
+        }
+        
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         //PollEvents and Swap
         glfwPollEvents();
         glfwSwapBuffers(window);

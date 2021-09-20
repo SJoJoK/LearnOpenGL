@@ -64,6 +64,7 @@ public:
         unsigned int specularNr = 1;
         unsigned int normalNr = 1;
         unsigned int AONr = 1;
+        unsigned int RoughnessNr = 1;
         for (unsigned int i = 0; i < textures.size(); i++)
         {
             glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
@@ -88,6 +89,11 @@ public:
             else if (name == "texture_AO")
             {
                 number = std::to_string(AONr++); // transfer unsigned int to stream
+                //cout << "Got a AO texture!" << endl;
+            }
+            else if (name == "texture_roughness")
+            {
+                number = std::to_string(RoughnessNr++); // transfer unsigned int to stream
                 //cout << "Got a AO texture!" << endl;
             }
 
