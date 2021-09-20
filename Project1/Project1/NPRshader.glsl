@@ -86,6 +86,8 @@ void main()
         FragColor = vec4(texture(material.texture_diffuse1, fs_in.TexCoord).rgb,1);
     else if(renderMode==SPECULAR)
         FragColor = vec4(texture(material.texture_specular1, fs_in.TexCoord).rgb,1);
+    else if(renderMode==ROUGHNESS)
+        FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
 }
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
 {

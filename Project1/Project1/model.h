@@ -51,10 +51,10 @@ public:
     }
 
     // draws the model, and thus all its meshes
-    void Draw(Shader& shader)
+    void Draw(Shader& shader, GLenum mode = GL_TRIANGLES)
     {
         for (unsigned int i = 0; i < meshes.size(); i++)
-            meshes[i].Draw(shader);
+            meshes[i].Draw(shader, mode);
     }
 
     // loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
@@ -155,89 +155,8 @@ public:
             for (unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back(face.mIndices[j]);
         }
-        if (mesh->mMaterialIndex>=0)
-        {
-            // process materials
-            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-            // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-            // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-            // Same applies to other texture as the following list summarizes:
-            // diffuse: texture_diffuseN
-            // specular: texture_specularN
-            // normal: texture_normalN
-
-            // 1. diffuse maps
-            vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-            textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-            // 2. specular maps
-            vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-            textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-            // 3. normal maps
-            std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-            textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-            // 4. AO maps
-            std::vector<Texture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_AO");
-            textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
-            // 5. Roughness maps
-            std::vector<Texture> RoughnessMaps = loadMaterialTextures(material, aiTextureType_UNKNOWN, "texture_roughness");
-            textures.insert(textures.end(), RoughnessMaps.begin(), RoughnessMaps.end());
-
-        }
         // return a mesh object created from the extracted mesh data
         return Mesh(vertices, indices, textures);
-    }
-
-    // checks all material textures of a given type and loads the textures if they're not loaded yet.
-    // the required info is returned as a Texture struct.
-    vector<Texture> loadMaterialTextures(aiMaterial* mat, aiTextureType type, string typeName)
-    {
-        vector<Texture> textures;
-        for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
-        {
-            aiString str;
-            mat->GetTexture(type, i, &str);
-            // check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
-            bool skip = false;
-            for (unsigned int j = 0; j < textures_loaded.size(); j++)
-            {
-                if (std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
-                {
-                    textures.push_back(textures_loaded[j]);
-                    skip = true; // a texture with the same filepath has already been loaded, continue to next one. (optimization)
-                    break;
-                }
-            }
-            if (!skip)
-            {   // if texture hasn't been loaded already, load it
-                Texture texture;
-                texture.id = TextureFromFile(str.C_Str(), this->directory);
-                texture.type = typeName;
-                texture.path = str.C_Str();
-                textures.push_back(texture);
-                textures_loaded.push_back(texture);  // store it as texture loaded for entire model, to ensure we won't unnecesery load duplicate textures.
-                if (typeName == "texture_diffuse")
-                {
-                    cout << "Got a diffuse texture!" << endl;
-                }
-                else if (typeName == "texture_specular")
-                {
-                    cout << "Got a specular texture!" << endl;
-                }
-                else if (typeName == "texture_normal")
-                {
-                    cout << "Got a normal texture!" << endl;
-                }
-                else if (typeName == "texture_AO")
-                {
-                    cout << "Got a AO texture!" << endl;
-                }
-                else if (typeName == "texture_roughness")
-                {
-                    cout << "Got a roughness texture!" << endl;
-                }
-            }
-        }
-        return textures;
     }
 };
 
