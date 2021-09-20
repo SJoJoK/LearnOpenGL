@@ -165,6 +165,9 @@ private:
             // 4. AO maps
             std::vector<Texture> AOMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_AO");
             textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
+            // 5. Roughness maps
+            std::vector<Texture> RoughnessMaps = loadMaterialTextures(material, aiTextureType_UNKNOWN, "texture_roughness");
+            textures.insert(textures.end(), AOMaps.begin(), AOMaps.end());
 
         }
         // return a mesh object created from the extracted mesh data
@@ -214,6 +217,10 @@ private:
                 else if (typeName == "texture_AO")
                 {
                     cout << "Got a AO texture!" << endl;
+                }
+                else if (typeName == "texture_roughness")
+                {
+                    cout << "Got a roughness texture!" << endl;
                 }
             }
         }

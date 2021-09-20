@@ -66,11 +66,8 @@ void main()
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
     float shadow = ShadowCalculation(dirLight, pointLight, normal, fs_in.FragPosLightSpace);
-    // µÚÒ»½×¶Î£º¶¨Ïò¹âÕÕ
     vec3 result = CalcDirLight(dirLight, normal, viewDir, shadow);
-    // µÚ¶þ½×¶Î£ºµã¹âÔ´
     //result += CalcPointLight(pointLight, normal, fs_in.FragPos, viewDir);
-    // µÚÈý½×¶Î£º¾Û¹â
     //result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
     if(gammaOn)
     {
@@ -87,12 +84,12 @@ void main()
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
 {
     vec3 lightDir = normalize(-light.direction);
-    // Âþ·´Éä×ÅÉ«
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
     float diff = max(dot(normal, lightDir), 0.0);
-    // ¾µÃæ¹â×ÅÉ«
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
-    // ºÏ²¢½á¹û
+    // ï¿½Ï²ï¿½ï¿½ï¿½ï¿½
     vec3 ambient  = light.ambient  * texture(material.texture_AO1, fs_in.TexCoord).r * vec3(texture(material.texture_diffuse1, fs_in.TexCoord));
     vec3 diffuse  = light.diffuse  * diff * vec3(texture(material.texture_diffuse1, fs_in.TexCoord));
     vec3 specular = light.specular * spec * vec3(texture(material.texture_specular1, fs_in.TexCoord));
@@ -101,16 +98,16 @@ vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     vec3 lightDir = normalize(light.position - fragPos);
-    // Âþ·´Éä×ÅÉ«
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
     float diff = max(dot(normal, lightDir), 0.0);
-    // ¾µÃæ¹â×ÅÉ«
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«
     vec3 halfwayDir = normalize(lightDir + viewDir);  
     float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
-    // Ë¥¼õ
+    // Ë¥ï¿½ï¿½
     float distance    = length(light.position - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + 
                  light.quadratic * (distance * distance));    
-    // ºÏ²¢½á¹û
+    // ï¿½Ï²ï¿½ï¿½ï¿½ï¿½
     vec3 ambient  = light.ambient  * texture(material.texture_AO1, fs_in.TexCoord).r * vec3(texture(material.texture_diffuse1, fs_in.TexCoord));
     vec3 diffuse  = light.diffuse  * diff * vec3(texture(material.texture_diffuse1, fs_in.TexCoord));
     vec3 specular = light.specular * spec * vec3(texture(material.texture_specular1, fs_in.TexCoord));
@@ -121,15 +118,15 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 }
 float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace)
 {
-    // Ö´ÐÐÍ¸ÊÓ³ý·¨
+    // Ö´ï¿½ï¿½Í¸ï¿½Ó³ï¿½ï¿½ï¿½
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // ±ä»»µ½[0,1]µÄ·¶Î§
+    // ï¿½ä»»ï¿½ï¿½[0,1]ï¿½Ä·ï¿½Î§
     projCoords = projCoords * 0.5 + 0.5;
-    // È¡µÃ×î½üµãµÄÉî¶È(Ê¹ÓÃ[0,1]·¶Î§ÏÂµÄfragPosLightµ±×ø±ê)
+    // È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Ê¹ï¿½ï¿½[0,1]ï¿½ï¿½Î§ï¿½Âµï¿½fragPosLightï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
     float closestDepth = texture(shadowMap, projCoords.xy).r; 
-    // È¡µÃµ±Ç°Æ¬¶ÎÔÚ¹âÔ´ÊÓ½ÇÏÂµÄÉî¶È
+    // È¡ï¿½Ãµï¿½Ç°Æ¬ï¿½ï¿½ï¿½Ú¹ï¿½Ô´ï¿½Ó½ï¿½ï¿½Âµï¿½ï¿½ï¿½ï¿½
     float currentDepth = projCoords.z;
-    // ¼ì²éµ±Ç°Æ¬¶ÎÊÇ·ñÔÚÒõÓ°ÖÐ
+    // ï¿½ï¿½éµ±Ç°Æ¬ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Ó°ï¿½ï¿½
     float bias = max(0.05 * (1.0 - dot(normal, -dirLight.direction)), 0.005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
