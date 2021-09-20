@@ -347,9 +347,30 @@ int main()
                         ourModel->loadModel(ab_path);
                         break;
                     }
+                    case ALBEDO:
+                    {
+                        texture_albedo.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                    case METALLIC:
+                    {
+                        texture_metallic.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                    case NORMAL:
+                    {
+                        texture_normal.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                    case AO:
+                    {
+                        texture_AO.id = TextureFromFile(ab_path);
+                        break;
+                    }
                     case ROUGHNESS :
                     {
                         texture_roughness.id = TextureFromFile(ab_path);
+                        break;
                     }
                     }
                     fileDialog.ClearSelected();
@@ -435,6 +456,27 @@ int main()
             glActiveTexture(GL_TEXTURE12);
             NPRShader.setInt("shadowMap", 12);
             glBindTexture(GL_TEXTURE_2D, depthMap);
+
+            glActiveTexture(GL_TEXTURE0 + ALBEDO);
+            NPRShader.setInt("material.texture_diffuse1", ALBEDO);
+            glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
+
+            glActiveTexture(GL_TEXTURE0 + METALLIC);
+            NPRShader.setInt("material.texture_specular1", METALLIC);
+            glBindTexture(GL_TEXTURE_2D, texture_metallic.id);
+
+            glActiveTexture(GL_TEXTURE0 + ROUGHNESS);
+            NPRShader.setInt("material.texture_roughness1", ROUGHNESS);
+            glBindTexture(GL_TEXTURE_2D, texture_roughness.id);
+
+            glActiveTexture(GL_TEXTURE0 + NORMAL);
+            NPRShader.setInt("material.texture_normal1", NORMAL);
+            glBindTexture(GL_TEXTURE_2D, texture_normal.id);
+
+            glActiveTexture(GL_TEXTURE0 + AO);
+            NPRShader.setInt("material.texture_AO1", AO);
+            glBindTexture(GL_TEXTURE_2D, texture_AO.id);
+
             ourModel->Draw(NPRShader);
 
             if (plight_arr.bulb_on)
