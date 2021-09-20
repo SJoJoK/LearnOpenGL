@@ -1,4 +1,7 @@
 #version 330 core
+#define RENDER 0
+#define NORMAL 1
+#define AO 2
 struct Material {
     vec3 diffuse;
     vec3 specular;
@@ -38,7 +41,7 @@ struct PointLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
-}; 
+};
 out vec4 FragColor;
 in VS_OUT {
     vec3 FragPos;
@@ -74,10 +77,12 @@ void main()
         float gamma = 2.2;
         result.rgb = pow(result.rgb, vec3(1.0/gamma));
     }
-    if(renderMode==0)
+    if(renderMode==RENDER)
         FragColor = vec4(result,1.f);
-    else if(renderMode==1)
+    else if(renderMode==NORMAL)
         FragColor = vec4((normal+1)/2,1.f);
+    else if(renderMode==AO)
+        FragColor = vec4(texture(material.texture_AO1, fs_in.TexCoord).rrr,1);
 }
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
 {

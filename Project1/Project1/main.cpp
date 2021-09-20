@@ -12,10 +12,13 @@
 #include "camera.h"
 #include "shader.h"
 #include "stb_image.h"
+#define RENDER 0
+#define NORMAL 1
+#define AO 2
 using namespace glm;
 using namespace std;
-int SCR_WIDTH = 800, SCR_HEIGHT = 600;
-const int SHADOW_WIDTH = 3200, SHADOW_HEIGHT = 2400;
+int SCR_WIDTH = 1200, SCR_HEIGHT = 900;
+const int SHADOW_WIDTH = 3200, SHADOW_HEIGHT = 3200;
 ostream& operator<<(std::ostream& out, const glm::vec4& v)
 {
     out << '(' << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ')' << endl;
@@ -70,10 +73,10 @@ struct PointLight_Arr {
 };
 
 struct DirLight_Arr {
-    float direction[3] = { 0.f,0.f,-1.0f };
-    float ambient[3] = { 0.05f,0.05f,0.05f };
-    float diffuse[3] = { 0.6f,0.6f,0.6f };
-    float specular[3] = { 0.5f,0.5f,0.5f };
+    float direction[3] = { 1.f,-1.f,-1.f };
+    float ambient[3] = { 0.35f,0.35f,0.35f };
+    float diffuse[3] = { 0.85f,0.85f,0.85f };
+    float specular[3] = { 1.f,1.f,1.f };
 };
 
 float bulb_vertices[] = {
@@ -265,10 +268,12 @@ int main()
             ImGui::Checkbox("Gamma Correction ", &gamma_on);
             //Ñ¡ÔñäÖÈ¾·½Ê½
             {
-                if (ImGui::Selectable("Render", render_mode == 0))
-                    render_mode = 0;
-                if (ImGui::Selectable("Normal", render_mode == 1))
-                    render_mode = 1;
+                if (ImGui::Selectable("Render", render_mode == RENDER))
+                    render_mode = RENDER;
+                if (ImGui::Selectable("Normal", render_mode == NORMAL))
+                    render_mode = NORMAL;
+                if (ImGui::Selectable("AO", render_mode == AO))
+                    render_mode = AO;
             }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
