@@ -10,6 +10,13 @@
 
 #include <string>
 #include <vector>
+#define NORMAL 1
+#define AO 2
+#define ALBEDO 3
+#define DIFFUSE 3
+#define SPECULAR 4
+#define METALLIC 4
+#define ROUGHNESS 5
 using namespace std;
 
 #define MAX_BONE_INFLUENCE 4
@@ -42,7 +49,8 @@ public:
     // mesh Data
     vector<Vertex>       vertices;
     vector<unsigned int> indices;
-    vector<Texture>      textures;
+    vector<Texture> textures;
+
     unsigned int VAO;
 
     // constructor
@@ -74,27 +82,22 @@ public:
             if (name == "texture_diffuse")
             {
                 number = std::to_string(diffuseNr++);
-                //cout << "Got a diffuse texture!" << endl;
             }
             else if (name == "texture_specular")
             {
                 number = std::to_string(specularNr++); // transfer unsigned int to stream
-                //cout << "Got a specular texture!" << endl;
             }
             else if (name == "texture_normal")
             {
                 number = std::to_string(normalNr++); // transfer unsigned int to stream
-                //cout << "Got a normal texture!" << endl;
             }
             else if (name == "texture_AO")
             {
                 number = std::to_string(AONr++); // transfer unsigned int to stream
-                //cout << "Got a AO texture!" << endl;
             }
             else if (name == "texture_roughness")
             {
                 number = std::to_string(RoughnessNr++); // transfer unsigned int to stream
-                //cout << "Got a AO texture!" << endl;
             }
 
             // now set the sampler to the correct texture unit

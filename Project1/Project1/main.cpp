@@ -14,12 +14,14 @@
 #include "shader.h"
 #include "stb_image.h"
 #define RENDER 0
+#define MODEL 0
 #define NORMAL 1
 #define AO 2
 #define ALBEDO 3
+#define DIFFUSE 3
 #define SPECULAR 4
+#define METALLIC 4
 #define ROUGHNESS 5
-#define MODEL 0
 using namespace glm;
 using namespace std;
 int SCR_WIDTH = 1200, SCR_HEIGHT = 900;
@@ -242,6 +244,8 @@ int main()
 
     ImGui::FileBrowser fileDialog;
 
+    Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -335,11 +339,17 @@ int main()
 
                 if (fileDialog.HasSelected())
                 {
+                    string ab_path = fileDialog.GetSelected().string();
                     switch (model_choose)
                     {
-                    case MODEL:
+                    case MODEL :
                     {
-                        ourModel->loadModel(fileDialog.GetSelected().string());
+                        ourModel->loadModel(ab_path);
+                        break;
+                    }
+                    case ROUGHNESS :
+                    {
+                        texture_roughness.id = TextureFromFile(ab_path);
                     }
                     }
                     fileDialog.ClearSelected();
