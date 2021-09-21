@@ -141,6 +141,9 @@ void main()
     vec3 ambient = vec3(0.03) * albedo * ao;
 
     vec3 result   = ambient + Lo;
+
+    vec3 fk = lightShade(normal, viewDir, light_PBR, albedo, metallic, roughness, F0);
+
     if(shadowOn)
     {
         result = ambient + (1-shadow)*Lo;
@@ -165,7 +168,7 @@ void main()
     else if(renderMode==SPECULAR)
         FragColor = vec4(texture(material.texture_specular1, fs_in.TexCoord).rgb,1);
     else if(renderMode==ROUGHNESS)
-        FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
+        FragColor = vec4(fk,1.f);
 }
 float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace)
 {
