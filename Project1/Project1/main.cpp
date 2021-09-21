@@ -191,8 +191,6 @@ int main()
     Material_Arr material_arr;
     PBRLight_Arr PBRlight_arr;
     Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
-    bool NPR_white_dir_light = false;
-    bool PBR_white_dir_light = false;
     bool sun_on = false;
     bool gamma_on = true;
     bool HDR_on = true;
@@ -238,7 +236,7 @@ int main()
             {
                 ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
                 ImGui::BulletText("PBRLight Attribute");
-                ImGui::Checkbox("pWhite Light", &PBR_white_dir_light);
+                ImGui::Checkbox("pWhite Light", &PBRlight_arr.white);
                 ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
                 ImGui::SliderFloat("Radius ", &(PBRlight_arr.radius), 0.f, 10.f);
                 ImGui::SliderFloat("Degree ", &(PBRlight_arr.degree), 0.f, 360.f);
@@ -358,10 +356,10 @@ int main()
 
         //Handle Attribute
         {
-            PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
-                PBRlight_arr.height,
-                -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
-            vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
+            //PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
+            //    PBRlight_arr.height,
+            //    -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
+            //vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
 
             if (PBRlight_arr.white)
             {
@@ -370,11 +368,11 @@ int main()
                 PBRlight_arr.color[2] = 1.f;
             }
 
-            PBRlight_arr.direction[0] = d.x;
-            PBRlight_arr.direction[1] = d.y;
-            PBRlight_arr.direction[2] = d.z;
-            projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-            view = camera.GetViewMatrix();
+            //PBRlight_arr.direction[0] = d.x;
+            //PBRlight_arr.direction[1] = d.y;
+            //PBRlight_arr.direction[2] = d.z;
+            //projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            //view = camera.GetViewMatrix();
         }
         if (ourModel->loaded)
         {
@@ -416,14 +414,7 @@ int main()
                 tureShader->setBool("light_PBR.point", false);
                 tureShader->setBool("ROUGH", true);
                 tureShader->setBool("sRGBtexture", true);
-                if (PBR_white_dir_light)
-                {
-                    tureShader->setVec3("light_PBR.lightColor", vec3(PBRlight_arr.flux));
-                }
-                else
-                {
-                    tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.color);
-                }
+                tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.flux*vec3(PBRlight_arr.color[0], PBRlight_arr.color[1], PBRlight_arr.color[2]));
                 tureShader->setBool("gammaOn", gamma_on);
                 tureShader->setBool("HDROn", HDR_on);
                 tureShader->setBool("shadowOn", shadow_on);
