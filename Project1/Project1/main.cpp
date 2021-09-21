@@ -59,9 +59,15 @@ struct Material_Arr
 };
 
 struct PBRLight_Arr {
-    float direction[3] = { 1.f,-1.f,-1.f };
-    float color[3] = { 20.f,20.f,20.f };
+    bool white = true;
+    bool point = false;
+    vec3 position;
+    float direction[3] = { 1.f, -1.f, -1.f };
+    float color[3] = { 1.f, 1.f, 1.f };
     float flux = 10.f;
+    float radius = 3.f;
+    float degree = 300.f;
+    float height = 1.0f;
 };
 
 float bulb_vertices[] = {
@@ -231,17 +237,12 @@ int main()
             //Scene Editor
             {
                 ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
-                //ImGui::BulletText("Bulb Attribute");
-                //ImGui::Checkbox("Sun on ", &(sun_on));
-                //ImGui::SliderFloat("Radius ", &(plight_arr.bulb_radius), 0.f, 10.f);
-                //ImGui::SliderFloat("Degree ", &(plight_arr.bulb_degree), 0.f, 360.f);
-                //ImGui::SliderFloat("Height ", &(plight_arr.bulb_height), 0.f, 10.f);
-                //ImGui::DragFloat3("bAmbient ", plight_arr.ambient, 0.05f, 0, 1);
-                //ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
-                //ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
                 ImGui::BulletText("PBRLight Attribute");
                 ImGui::Checkbox("pWhite Light", &PBR_white_dir_light);
                 ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
+                ImGui::SliderFloat("Radius ", &(PBRlight_arr.radius), 0.f, 10.f);
+                ImGui::SliderFloat("Degree ", &(PBRlight_arr.degree), 0.f, 360.f);
+                ImGui::SliderFloat("Height ", &(PBRlight_arr.height), 0.f, 10.f);
                 ImGui::DragFloat3("pColor ", PBRlight_arr.color, 0.5f, 0.f, 30.f);
                 ImGui::SliderFloat("pFlux ", &(PBRlight_arr.flux), 0.f, 30.f);
                 ImGui::BulletText("Material Attribute");
@@ -354,6 +355,27 @@ int main()
         //Clear
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+        //Handle Attribute
+        {
+            PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
+                PBRlight_arr.height,
+                -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
+            vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
+
+            if (PBRlight_arr.white)
+            {
+                PBRlight_arr.color[0] = 1.f;
+                PBRlight_arr.color[1] = 1.f;
+                PBRlight_arr.color[2] = 1.f;
+            }
+
+            PBRlight_arr.direction[0] = d.x;
+            PBRlight_arr.direction[1] = d.y;
+            PBRlight_arr.direction[2] = d.z;
+            projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            view = camera.GetViewMatrix();
+        }
         if (ourModel->loaded)
         {
             //Shadow Map
