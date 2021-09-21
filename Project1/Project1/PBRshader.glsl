@@ -91,7 +91,7 @@ vec3 lightShade(vec3 normal, vec3 viewDir, Light light, vec3 albedo, vec3 metall
 }
 void main()
 {
-    vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
+     vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
@@ -111,6 +111,7 @@ void main()
 
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, albedo, metallic);
+    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
 
     vec3 Lo = vec3(0.0);
 
