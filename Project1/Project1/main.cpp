@@ -408,9 +408,6 @@ int main()
             tureShader->use();
             {
                 tureShader->setVec3("viewPos", camera.Position);
-                tureShader->setVec3("material.diffuse", material_arr.diffuse);
-                tureShader->setVec3("material.specular", material_arr.specular);
-                tureShader->setFloat("material.shininess", material_arr.shininess);
                 tureShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
                 tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
                 tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2]);
