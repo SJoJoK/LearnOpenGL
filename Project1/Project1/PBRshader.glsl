@@ -22,19 +22,10 @@ struct Material {
     sampler2D texture_roughness1;
     sampler2D texture_roughness2;
 };
-struct DirLight {
+struct Light {
     vec3 direction;
     vec3 lightColor;
     mat4 lightSpaceMatrix;
-};
-struct PointLight {
-    vec3 position;
-    float constant;
-    float linear;
-    float quadratic;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
 };
 in VS_OUT {
     vec3 FragPos;
@@ -44,8 +35,7 @@ in VS_OUT {
 } fs_in;
 out vec4 FragColor;
 uniform sampler2D shadowMap;
-uniform DirLight light_PBR;
-uniform PointLight pointLight_PBR;
+uniform Light light_PBR;
 uniform Material material;
 uniform bool shadowOn;
 uniform bool gammaOn;
@@ -56,8 +46,8 @@ float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float k);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float k);
 vec3 fresnelSchlick(float cosTheta, vec3 F0);
-float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace);
-vec3 lightShade(vec3 normal, vec3 viewDir, DirLight light, vec3 albedo, vec3 metallic, float roughness, vec3 F0)
+float ShadowCalculation(Light dirLight, vec3 normal, vec4 fragPosLightSpace);
+vec3 lightShade(vec3 normal, vec3 viewDir, Light light, vec3 albedo, vec3 metallic, float roughness, vec3 F0)
 {
     vec4 FragPosLightSpace = light.lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
 
@@ -118,7 +108,6 @@ void main()
 
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, albedo, metallic);
-    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
 
     vec3 Lo = vec3(0.0);
 
@@ -155,7 +144,7 @@ void main()
     else if(renderMode==ROUGHNESS)
         FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
 }
-float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace)
+float ShadowCalculation(Light dirLight, vec3 normal, vec4 fragPosLightSpace)
 {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
