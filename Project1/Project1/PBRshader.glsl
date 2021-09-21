@@ -25,6 +25,7 @@ struct Material {
 struct DirLight {
     vec3 direction;
     vec3 lightColor;
+    mat4 lightSpaceMatrix;
 };
 struct PointLight {
     vec3 position;
@@ -43,7 +44,7 @@ in VS_OUT {
 } fs_in;
 out vec4 FragColor;
 uniform sampler2D shadowMap;
-uniform DirLight dirLight_PBR;
+uniform DirLight light_PBR;
 uniform PointLight pointLight_PBR;
 uniform Material material;
 uniform bool shadowOn;
@@ -55,7 +56,49 @@ float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float k);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float k);
 vec3 fresnelSchlick(float cosTheta, vec3 F0);
-float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace);
+float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace);
+vec3 lightShade(vec3 normal, vec3 viewDir, DirLight light, vec3 albedo, vec3 metallic, float roughness, vec3 F0)
+{
+    vec4 FragPosLightSpace = light.lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
+
+    float shadow = ShadowCalculation(light,normal, FragPosLightSpace);
+
+    vec3 lightDir = -normalize(light.direction);
+    
+    vec3 halfVec = normalize(viewDir + lightDir);
+
+    float attenuation = 1.0;
+
+    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
+
+    vec3 Lo = vec3(0.0);
+
+    float NDF = DistributionGGX(normal, halfVec, roughness);       
+    float G   = GeometrySmith(normal, viewDir, lightDir, roughness);
+    vec3 nominator    = NDF * G * F;
+    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.001; 
+    vec3 specular     = nominator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+
+    kD *= 1.0 - metallic;
+
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    
+    vec3 radiance = light.lightColor * attenuation;
+    
+    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+
+    vec3 result   = Lo;
+
+    if(shadowOn)
+    {
+        result = (1-shadow)*Lo;
+    }
+
+    return result;
+}
 void main()
 {
     vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
@@ -63,14 +106,14 @@ void main()
     normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
 
-    float shadow = ShadowCalculation(dirLight_PBR, pointLight_PBR, normal, fs_in.FragPosLightSpace);
+    float shadow = ShadowCalculation(light_PBR, normal, fs_in.FragPosLightSpace);
 
     vec3 ao = texture(material.texture_AO1,fs_in.TexCoord).rrr;
     vec3 albedo = texture(material.texture_diffuse1,fs_in.TexCoord).rgb;
     vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
     float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
 
-    vec3 lightDir = -normalize(dirLight_PBR.direction);
+    vec3 lightDir = -normalize(light_PBR.direction);
     vec3 halfVec = normalize(viewDir + lightDir);
 
     vec3 F0 = vec3(0.04); 
@@ -92,7 +135,7 @@ void main()
 
     float NdotL = max(dot(normal, lightDir), 0.0);
     
-    vec3 radiance = dirLight_PBR.lightColor;
+    vec3 radiance = light_PBR.lightColor;
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
     vec3 ambient = vec3(0.03) * albedo * ao;
@@ -124,7 +167,7 @@ void main()
     else if(renderMode==ROUGHNESS)
         FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
 }
-float ShadowCalculation(DirLight dirLight, PointLight pointLight, vec3 normal, vec4 fragPosLightSpace)
+float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace)
 {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;

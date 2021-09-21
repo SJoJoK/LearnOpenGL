@@ -269,12 +269,6 @@ int main()
                 //ImGui::DragFloat3("bAmbient ", plight_arr.ambient, 0.05f, 0, 1);
                 //ImGui::DragFloat3("bDiffuse ", plight_arr.diffuse, 0.05f, 0, 1);
                 //ImGui::DragFloat3("bSpecular ", plight_arr.specular, 0.05f, 0, 1);
-                ImGui::BulletText("NPRLight Attribute");
-                ImGui::Checkbox("nWhite Light", &NPR_white_dir_light);
-                ImGui::DragFloat3("ndirection ", NPRlight_arr.direction, 0.05f, -1, 1);
-                ImGui::DragFloat3("nAmbient ", NPRlight_arr.ambient, 0.05f, 0, 1);
-                ImGui::DragFloat3("nDiffuse ", NPRlight_arr.diffuse, 0.05f, 0, 1);
-                ImGui::DragFloat3("nSpecular ", NPRlight_arr.specular, 0.05f, 0, 1);
                 ImGui::BulletText("PBRLight Attribute");
                 ImGui::Checkbox("pWhite Light", &PBR_white_dir_light);
                 ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
@@ -427,14 +421,7 @@ int main()
                 glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
-            if (PBR_render)
-            {
-                tureShader = &PBRShader;
-            }
-            else
-            {
-                tureShader = &NPRShader;
-            }
+            tureShader = &PBRShader;
             //ShaderProgram & VAO||EBO 
             tureShader->use();
             {
@@ -442,39 +429,19 @@ int main()
                 tureShader->setVec3("material.diffuse", material_arr.diffuse);
                 tureShader->setVec3("material.specular", material_arr.specular);
                 tureShader->setFloat("material.shininess", material_arr.shininess);
-                if (plight_arr.bulb_on)
-                {
-                    tureShader->setVec3("pointLight.ambient", plight_arr.ambient);
-                    tureShader->setVec3("pointLight.diffuse", plight_arr.diffuse);
-                    tureShader->setVec3("pointLight.specular", plight_arr.specular);
-                }
-                else
-                {
-                    tureShader->setVec3("pointLight.ambient", vec3(0.f));
-                    tureShader->setVec3("pointLight.diffuse", vec3(0.f));
-                    tureShader->setVec3("pointLight.specular", vec3(0.f));
-                }
                 tureShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
-                tureShader->setVec3("pointLight.position", plight_arr.position);
-                tureShader->setFloat("pointLight.constant", plight_arr.constant);
-                tureShader->setFloat("pointLight.linear", plight_arr.linear);
-                tureShader->setFloat("pointLight.quadratic", plight_arr.quadratic);
-                tureShader->setVec3("dirLight.direction", NPRlight_arr.direction);
-                tureShader->setVec3("dirLight.ambient", NPRlight_arr.ambient);
-                tureShader->setVec3("dirLight.diffuse", NPRlight_arr.diffuse);
-                tureShader->setVec3("dirLight.specular", NPRlight_arr.specular);
-                tureShader->setVec3("dirLight_PBR.direction", PBRlight_arr.direction);
+                tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
+                tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction);
+                tureShader->setBool("light_PBR.point", false);
+                tureShader->setBool("ROUGH", true);
+                tureShader->setBool("sRGBtexture", true);
                 if (PBR_white_dir_light)
                 {
-                    tureShader->setVec3("dirLight_PBR.lightColor", vec3(PBRlight_arr.flux));
+                    tureShader->setVec3("light_PBR.lightColor", vec3(PBRlight_arr.flux));
                 }
                 else
                 {
-                    tureShader->setVec3("dirLight_PBR.lightColor", PBRlight_arr.color);
-                }
-                if (NPR_white_dir_light)
-                {
-                    tureShader->setVec3("dirLight.lightColor", vec3(NPRlight_arr.bright));
+                    tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.color);
                 }
                 tureShader->setBool("gammaOn", gamma_on);
                 tureShader->setBool("HDROn", HDR_on);
@@ -495,7 +462,7 @@ int main()
             
             {
                 glActiveTexture(GL_TEXTURE12);
-                tureShader->setInt("shadowMap", 12);
+                tureShader->setInt("light_PBR.shadowMap", 12);
                 glBindTexture(GL_TEXTURE_2D, depthMap);
 
                 glActiveTexture(GL_TEXTURE0 + ALBEDO);
