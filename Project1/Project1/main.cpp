@@ -23,6 +23,8 @@
 #define METALLIC 4
 #define ROUGHNESS 5
 #define MESH 6
+#define SHADOW1 7
+#define SHADOW2 8
 using namespace glm;
 using namespace std;
 int SCR_WIDTH = 1200, SCR_HEIGHT = 900;
@@ -168,8 +170,7 @@ int main()
     Shader depthShader("depthshader.glsl", "nullshader.glsl");
     Shader postShader("postVshader.glsl", "postFshader.glsl");
     Shader* tureShader = &PBRShader;
-    unsigned int bulb_VBO;
-    unsigned int bulb_VAO;
+    unsigned int bulb_VBO, bulb_VAO;
     glGenBuffers(1, &bulb_VBO);
     glBindBuffer(GL_ARRAY_BUFFER, bulb_VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(bulb_vertices), bulb_vertices, GL_STATIC_DRAW);
@@ -178,6 +179,17 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, bulb_VBO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    unsigned int quad_VAO, quad_VBO;
+    glGenVertexArrays(1, &quad_VAO);
+    glGenBuffers(1, &quad_VBO);
+    glBindVertexArray(quad_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quad_VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glm::mat4 identity;
     glm::mat4 model;
@@ -208,8 +220,6 @@ int main()
 
     get_depth_buffer(depthMapFBO, depthMap);
     get_depth_buffer(depthMapFBO1, depthMap1);
-
-    get_depth_buffer(depthMapFBO, depthMap);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -276,6 +286,10 @@ int main()
                         render_mode = AO;
                     if (ImGui::Selectable("Mesh", render_mode == MESH))
                         render_mode = MESH;
+                    if (ImGui::Selectable("Shadow Map 1", render_mode == SHADOW1))
+                        render_mode = SHADOW1;
+                    if (ImGui::Selectable("Shadow Map 2", render_mode == SHADOW2))
+                        render_mode = SHADOW2;
                 }
                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
                 ImGui::End();
@@ -405,6 +419,7 @@ int main()
         if (ourModel->loaded)
         {
             float near_plane = 0.1f, far_plane = 30.f;
+            float ortho_length=3.5f, light_radius=3.5f;
             //Shadow Map
             {
                 // 1. 首选渲染深度贴图
@@ -414,9 +429,9 @@ int main()
                 glClear(GL_DEPTH_BUFFER_BIT);
                 model = identity;
                 depthShader.use();
-                glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+                glm::mat4 lightProjection = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
                 glm::mat4 lightView = glm::lookAt(//camera.Position,
-                        -glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
+                        -light_radius*glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
                         vec3(0.f),
                         vec3(0.f, 1.f, 0.f));
                 lightSpaceMatrix = lightProjection * lightView;
@@ -431,9 +446,9 @@ int main()
                 glClear(GL_DEPTH_BUFFER_BIT);
                 model = identity;
                 depthShader.use();
-                glm::mat4 lightProjection1 = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+                glm::mat4 lightProjection1 = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
                 glm::mat4 lightView1 = glm::lookAt(//camera.Position,
-                    -glm::normalize(vec3(PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2])),
+                    -light_radius * glm::normalize(vec3(PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2])),
                     vec3(0.f),
                     vec3(0.f, 1.f, 0.f));
                 lightSpaceMatrix1 = lightProjection1 * lightView1;
@@ -485,6 +500,10 @@ int main()
                     tureShader->setInt("light_PBR.shadowMap", 12);
                     glBindTexture(GL_TEXTURE_2D, depthMap);
 
+                    glActiveTexture(GL_TEXTURE13);
+                    tureShader->setInt("light_PBR1.shadowMap", 13);
+                    glBindTexture(GL_TEXTURE_2D, depthMap1);
+
                     glActiveTexture(GL_TEXTURE0 + ALBEDO);
                     tureShader->setInt("material.texture_diffuse1", ALBEDO);
                     glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
@@ -510,6 +529,24 @@ int main()
             if (render_mode == MESH)
             {
                 ourModel->Draw(*tureShader, GL_LINES);
+            }
+            else if (render_mode == SHADOW1)
+            {
+                postShader.use();
+                postShader.setInt("depthMap", 12);
+                postShader.setFloat("near_plane", near_plane);
+                postShader.setFloat("far_plane", far_plane);
+                glBindVertexArray(quad_VAO);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+            }
+            else if (render_mode == SHADOW2)
+            {
+                postShader.use();
+                postShader.setInt("depthMap", 13);
+                postShader.setFloat("near_plane", near_plane);
+                postShader.setFloat("far_plane", far_plane);
+                glBindVertexArray(quad_VAO);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
             }
             else
             {
