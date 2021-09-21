@@ -100,6 +100,7 @@ void main()
 
     vec3 ao = texture(material.texture_AO1,fs_in.TexCoord).rrr;
     vec3 albedo = texture(material.texture_diffuse1,fs_in.TexCoord).rgb;
+    albedo.rgb=pow(albedo.rgb,vec3(2.2));
     vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
     float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
 

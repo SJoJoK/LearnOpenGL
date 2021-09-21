@@ -210,14 +210,13 @@ int main()
     NPRLight_Arr NPRlight_arr;
     PBRLight_Arr PBRlight_arr;
     Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
-    bool PBR_render;
     bool NPR_white_dir_light = false;
     bool PBR_white_dir_light = false;
     bool sun_on = false;
-    bool gamma_on = false;
-    bool HDR_on = false;
-    bool shadow_on = false;
-    int render_mode = MESH;
+    bool gamma_on = true;
+    bool HDR_on = true;
+    bool shadow_on = true;
+    int render_mode = RENDER;
     int model_choose = -1;
 
     GLuint depthMapFBO;
@@ -243,6 +242,14 @@ int main()
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
 
     ImGui::FileBrowser fileDialog;
+    ourModel->loadModel("D:/Assets/backpack/backpack.obj");
+    ourModel->loaded = true;
+    texture_albedo.id = TextureFromFile("D:/Assets/backpack/diffuse.jpg");
+    texture_metallic.id = TextureFromFile("D:/Assets/backpack/specular.jpg");
+    texture_normal.id = TextureFromFile("D:/Assets/backpack/normal.png");
+    texture_AO.id = TextureFromFile("D:/Assets/backpack/ao.jpg");
+    texture_roughness.id = TextureFromFile("D:/Assets/backpack/roughness.jpg");
+
 
     while (!glfwWindowShouldClose(window))
     {
@@ -281,7 +288,6 @@ int main()
                 ImGui::Checkbox("HDR ", &HDR_on);
                 ImGui::Checkbox("Shadow ", &shadow_on);
                 ImGui::BulletText("Render Mode");
-                ImGui::Checkbox("PBR", &PBR_render);
                 //—°‘Ò‰÷»æ∑Ω Ω
                 {
                     if (ImGui::Selectable("Render", render_mode == RENDER))
@@ -402,16 +408,9 @@ int main()
                 float near_plane = 0.1f, far_plane = 30.f;
                 glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
                 glm::mat4 lightView = glm::lookAt(//camera.Position,
-                    -glm::normalize(vec3(NPRlight_arr.direction[0], NPRlight_arr.direction[1], NPRlight_arr.direction[2])),
-                    vec3(0.f),
-                    vec3(0.f, 1.f, 0.f));
-                if (PBR_render)
-                {
-                    lightView = glm::lookAt(//camera.Position,
                         -glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
                         vec3(0.f),
                         vec3(0.f, 1.f, 0.f));
-                }
                 lightSpaceMatrix = lightProjection * lightView;
                 depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
                 depthShader.setMat4("model", model);
