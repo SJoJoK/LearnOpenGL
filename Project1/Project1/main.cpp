@@ -185,11 +185,13 @@ int main()
     glm::mat4 view;
     glm::mat4 normal_mat;
     glm::mat4 lightSpaceMatrix;
+    glm::mat4 lightSpaceMatrix1;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     stbi_set_flip_vertically_on_load(true);
     Model* ourModel = new Model();
     Material_Arr material_arr;
     PBRLight_Arr PBRlight_arr;
+    PBRLight_Arr PBRlight_arr1;
     Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
     bool sun_on = false;
     bool gamma_on = true;
@@ -198,10 +200,11 @@ int main()
     int render_mode = RENDER;
     int model_choose = -1;
 
-    GLuint depthMapFBO;
-    glGenFramebuffers(1, &depthMapFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    GLuint depthMap, depthMap1;
+    unsigned int depthMapFBO, depthMapFBO1;
+    unsigned int depthMap, depthMap1;
+
+    get_depth_buffer(depthMapFBO, depthMap);
+    get_depth_buffer(depthMapFBO1, depthMap1);
 
     get_depth_buffer(depthMapFBO, depthMap);
 
@@ -238,13 +241,19 @@ int main()
                 ImGui::BulletText("PBRLight Attribute");
                 ImGui::Checkbox("pWhite Light", &PBRlight_arr.white);
                 ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
-                ImGui::SliderFloat("Radius ", &(PBRlight_arr.radius), 0.f, 10.f);
-                ImGui::SliderFloat("Degree ", &(PBRlight_arr.degree), 0.f, 360.f);
-                ImGui::SliderFloat("Height ", &(PBRlight_arr.height), 0.f, 10.f);
+                ImGui::SliderFloat("pRadius ", &(PBRlight_arr.radius), 0.f, 10.f);
+                ImGui::SliderFloat("pDegree ", &(PBRlight_arr.degree), 0.f, 360.f);
+                ImGui::SliderFloat("pHeight ", &(PBRlight_arr.height), 0.f, 10.f);
                 ImGui::DragFloat3("pColor ", PBRlight_arr.color, 0.5f, 0.f, 30.f);
                 ImGui::SliderFloat("pFlux ", &(PBRlight_arr.flux), 0.f, 30.f);
-                ImGui::BulletText("Material Attribute");
-                ImGui::SliderFloat("shininess ", &(material_arr.shininess), 0.f, 100.f);
+                ImGui::BulletText("PBRLight1 Attribute");
+                ImGui::Checkbox("p1White Light", &PBRlight_arr1.white);
+                ImGui::DragFloat3("p1direction ", PBRlight_arr1.direction, 0.05f, -1, 1);
+                ImGui::SliderFloat("p1Radius ", &(PBRlight_arr1.radius), 0.f, 10.f);
+                ImGui::SliderFloat("p1Degree ", &(PBRlight_arr1.degree), 0.f, 360.f);
+                ImGui::SliderFloat("p1Height ", &(PBRlight_arr1.height), 0.f, 10.f);
+                ImGui::DragFloat3("p1Color ", PBRlight_arr1.color, 0.5f, 0.f, 30.f);
+                ImGui::SliderFloat("p1Flux ", &(PBRlight_arr1.flux), 0.f, 30.f);
                 ImGui::BulletText("Display Attribute");
                 ImGui::Checkbox("Gamma Correction ", &gamma_on);
                 ImGui::Checkbox("HDR ", &HDR_on);
@@ -359,7 +368,12 @@ int main()
             PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
                 PBRlight_arr.height,
                 -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
-            vec3 d = vec3(0.f) - (PBRlight_arr.position);
+            vec3 d = vec3(0.f) - PBRlight_arr.position;
+
+            PBRlight_arr1.position = vec3(PBRlight_arr1.height,
+                PBRlight_arr1.radius * sin(glm::radians(PBRlight_arr1.degree)),
+                PBRlight_arr1.radius * cos(glm::radians(PBRlight_arr1.degree)));
+            vec3 d1 = vec3(0.f) - PBRlight_arr1.position;
 
             if (PBRlight_arr.white)
             {
@@ -367,18 +381,27 @@ int main()
                 PBRlight_arr.color[1] = 1.f;
                 PBRlight_arr.color[2] = 1.f;
             }
-            static bool ffk = true;
+            if (PBRlight_arr1.white)
+            {
+                PBRlight_arr1.color[0] = 1.f;
+                PBRlight_arr1.color[1] = 1.f;
+                PBRlight_arr1.color[2] = 1.f;
+            }
 
-            //PBRlight_arr.direction[0] = d.x;
-            //PBRlight_arr.direction[1] = d.y;
-            //PBRlight_arr.direction[2] = d.z;
+            PBRlight_arr.direction[0] = d.x;
+            PBRlight_arr.direction[1] = d.y;
+            PBRlight_arr.direction[2] = d.z;
 
+            PBRlight_arr1.direction[0] = d1.x;
+            PBRlight_arr1.direction[1] = d1.y;
+            PBRlight_arr1.direction[2] = d1.z;
 
             projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
             view = camera.GetViewMatrix();
         }
         if (ourModel->loaded)
         {
+            float near_plane = 0.1f, far_plane = 30.f;
             //Shadow Map
             {
                 // 1. 首选渲染深度贴图
@@ -388,7 +411,6 @@ int main()
                 glClear(GL_DEPTH_BUFFER_BIT);
                 model = identity;
                 depthShader.use();
-                float near_plane = 0.1f, far_plane = 30.f;
                 glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
                 glm::mat4 lightView = glm::lookAt(//camera.Position,
                         -glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
@@ -399,7 +421,24 @@ int main()
                 depthShader.setMat4("model", model);
                 ourModel->Draw(depthShader);
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                // 2. 像往常一样渲染场景，但这次使用深度贴图
+                // 2. 首选渲染深度贴图
+                glBindTexture(GL_TEXTURE_2D, depthMap1);
+                glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+                glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO1);
+                glClear(GL_DEPTH_BUFFER_BIT);
+                model = identity;
+                depthShader.use();
+                glm::mat4 lightProjection1 = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+                glm::mat4 lightView1 = glm::lookAt(//camera.Position,
+                    -glm::normalize(vec3(PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2])),
+                    vec3(0.f),
+                    vec3(0.f, 1.f, 0.f));
+                lightSpaceMatrix1 = lightProjection1 * lightView1;
+                depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix1);
+                depthShader.setMat4("model", model);
+                ourModel->Draw(depthShader);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                // 3. 像往常一样渲染场景，但这次使用深度贴图
                 glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
@@ -407,55 +446,63 @@ int main()
             //ShaderProgram & VAO||EBO 
             tureShader->use();
             {
-                tureShader->setVec3("viewPos", camera.Position);
-                tureShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
-                tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
-                tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2]);
-                tureShader->setBool("light_PBR.point", false);
-                tureShader->setBool("ROUGH", true);
-                tureShader->setBool("sRGBtexture", true);
-                tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.flux*vec3(PBRlight_arr.color[0], PBRlight_arr.color[1], PBRlight_arr.color[2]));
-                tureShader->setBool("gammaOn", gamma_on);
-                tureShader->setBool("HDROn", HDR_on);
-                tureShader->setBool("shadowOn", shadow_on);
-                tureShader->setInt("renderMode", render_mode);
-                // view/projection transformations
-                projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-                view = camera.GetViewMatrix();
-                tureShader->setMat4("projection", projection);
-                tureShader->setMat4("view", view);
-                // render the loaded model
-                model = identity;
-                model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-                model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
-                tureShader->setMat4("model", model);
-                tureShader->setMat4("normal_mat", transpose(inverse(model)));
-            }
-            
-            {
-                glActiveTexture(GL_TEXTURE12);
-                tureShader->setInt("light_PBR.shadowMap", 12);
-                glBindTexture(GL_TEXTURE_2D, depthMap);
+                {
+                    tureShader->setVec3("viewPos", camera.Position);
 
-                glActiveTexture(GL_TEXTURE0 + ALBEDO);
-                tureShader->setInt("material.texture_diffuse1", ALBEDO);
-                glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
+                    tureShader->setMat4("light_PBR1.lightSpaceMatrix", lightSpaceMatrix1);
+                    tureShader->setVec3("light_PBR1.direction", PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2]);
+                    tureShader->setVec3("light_PBR1.lightColor", PBRlight_arr1.flux* vec3(PBRlight_arr1.color[0], PBRlight_arr1.color[1], PBRlight_arr1.color[2]));
+                    tureShader->setBool("light_PBR1.point", false);
 
-                glActiveTexture(GL_TEXTURE0 + METALLIC);
-                tureShader->setInt("material.texture_specular1", METALLIC);
-                glBindTexture(GL_TEXTURE_2D, texture_metallic.id);
+                    tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
+                    tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2]);
+                    tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.flux* vec3(PBRlight_arr.color[0], PBRlight_arr.color[1], PBRlight_arr.color[2]));
+                    tureShader->setBool("light_PBR.point", false);
 
-                glActiveTexture(GL_TEXTURE0 + ROUGHNESS);
-                tureShader->setInt("material.texture_roughness1", ROUGHNESS);
-                glBindTexture(GL_TEXTURE_2D, texture_roughness.id);
+                    tureShader->setBool("ROUGH", true);
+                    tureShader->setBool("sRGBtexture", true);
+                    tureShader->setBool("gammaOn", gamma_on);
+                    tureShader->setBool("HDROn", HDR_on);
+                    tureShader->setBool("shadowOn", shadow_on);
+                    tureShader->setInt("renderMode", render_mode);
+                    // view/projection transformations
+                    projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+                    view = camera.GetViewMatrix();
+                    tureShader->setMat4("projection", projection);
+                    tureShader->setMat4("view", view);
+                    // render the loaded model
+                    model = identity;
+                    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+                    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+                    tureShader->setMat4("model", model);
+                    tureShader->setMat4("normal_mat", transpose(inverse(model)));
+                }
 
-                glActiveTexture(GL_TEXTURE0 + NORMAL);
-                tureShader->setInt("material.texture_normal1", NORMAL);
-                glBindTexture(GL_TEXTURE_2D, texture_normal.id);
+                {
+                    glActiveTexture(GL_TEXTURE12);
+                    tureShader->setInt("light_PBR.shadowMap", 12);
+                    glBindTexture(GL_TEXTURE_2D, depthMap);
 
-                glActiveTexture(GL_TEXTURE0 + AO);
-                tureShader->setInt("material.texture_AO1", AO);
-                glBindTexture(GL_TEXTURE_2D, texture_AO.id);
+                    glActiveTexture(GL_TEXTURE0 + ALBEDO);
+                    tureShader->setInt("material.texture_diffuse1", ALBEDO);
+                    glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
+
+                    glActiveTexture(GL_TEXTURE0 + METALLIC);
+                    tureShader->setInt("material.texture_specular1", METALLIC);
+                    glBindTexture(GL_TEXTURE_2D, texture_metallic.id);
+
+                    glActiveTexture(GL_TEXTURE0 + ROUGHNESS);
+                    tureShader->setInt("material.texture_roughness1", ROUGHNESS);
+                    glBindTexture(GL_TEXTURE_2D, texture_roughness.id);
+
+                    glActiveTexture(GL_TEXTURE0 + NORMAL);
+                    tureShader->setInt("material.texture_normal1", NORMAL);
+                    glBindTexture(GL_TEXTURE_2D, texture_normal.id);
+
+                    glActiveTexture(GL_TEXTURE0 + AO);
+                    tureShader->setInt("material.texture_AO1", AO);
+                    glBindTexture(GL_TEXTURE_2D, texture_AO.id);
+                }
             }
 
             if (render_mode == MESH)
