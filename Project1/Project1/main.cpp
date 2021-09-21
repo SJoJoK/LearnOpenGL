@@ -356,10 +356,10 @@ int main()
 
         //Handle Attribute
         {
-            //PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
-            //    PBRlight_arr.height,
-            //    -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
-            //vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
+            PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
+                PBRlight_arr.height,
+                -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
+            vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
 
             if (PBRlight_arr.white)
             {
@@ -371,8 +371,8 @@ int main()
             //PBRlight_arr.direction[0] = d.x;
             //PBRlight_arr.direction[1] = d.y;
             //PBRlight_arr.direction[2] = d.z;
-            //projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-            //view = camera.GetViewMatrix();
+            projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+            view = camera.GetViewMatrix();
         }
         if (ourModel->loaded)
         {
