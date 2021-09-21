@@ -122,27 +122,12 @@ void main()
 
     vec3 Lo = vec3(0.0);
 
-    float NDF = DistributionGGX(normal, halfVec, roughness);       
-    float G   = GeometrySmith(normal, viewDir, lightDir, roughness);
-    vec3 nominator    = NDF * G * F;
-    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.001; 
-    vec3 specular     = nominator / denominator;
-
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-
-    kD *= 1.0 - metallic;
-
-    float NdotL = max(dot(normal, lightDir), 0.0);
-    
-    vec3 radiance = light_PBR.lightColor;
-    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-
     vec3 ambient = vec3(0.03) * albedo * ao;
+
+    Lo += lightShade(normal, viewDir, light_PBR, albedo, metallic, roughness, F0);
 
     vec3 result   = ambient + Lo;
 
-    vec3 fk = lightShade(normal, viewDir, light_PBR, albedo, metallic, roughness, F0);
 
     if(shadowOn)
     {
@@ -168,7 +153,7 @@ void main()
     else if(renderMode==SPECULAR)
         FragColor = vec4(texture(material.texture_specular1, fs_in.TexCoord).rgb,1);
     else if(renderMode==ROUGHNESS)
-        FragColor = vec4(fk,1.f);
+        FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
 }
 float ShadowCalculation(DirLight dirLight, vec3 normal, vec4 fragPosLightSpace)
 {
