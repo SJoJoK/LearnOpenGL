@@ -369,9 +369,9 @@ int main()
             }
             static bool ffk = true;
 
-            PBRlight_arr.direction[0] = d.x;
-            PBRlight_arr.direction[1] = d.y;
-            PBRlight_arr.direction[2] = d.z;
+            //PBRlight_arr.direction[0] = d.x;
+            //PBRlight_arr.direction[1] = d.y;
+            //PBRlight_arr.direction[2] = d.z;
 
 
             projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
