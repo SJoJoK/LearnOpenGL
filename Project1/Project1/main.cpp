@@ -66,8 +66,8 @@ struct PBRLight_Arr {
     float color[3] = { 1.f, 1.f, 1.f };
     float flux = 10.f;
     float radius = 3.f;
-    float degree = 300.f;
-    float height = 1.0f;
+    float degree = 225.f;
+    float height = 1.737f;
 };
 
 float bulb_vertices[] = {
@@ -359,7 +359,7 @@ int main()
             PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
                 PBRlight_arr.height,
                 -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
-            vec3 d = vec3(0.f) - normalize(PBRlight_arr.position);
+            vec3 d = vec3(0.f) - (PBRlight_arr.position);
 
             if (PBRlight_arr.white)
             {
@@ -367,10 +367,13 @@ int main()
                 PBRlight_arr.color[1] = 1.f;
                 PBRlight_arr.color[2] = 1.f;
             }
+            static bool ffk = true;
 
-            //PBRlight_arr.direction[0] = d.x;
-            //PBRlight_arr.direction[1] = d.y;
-            //PBRlight_arr.direction[2] = d.z;
+            PBRlight_arr.direction[0] = d.x;
+            PBRlight_arr.direction[1] = d.y;
+            PBRlight_arr.direction[2] = d.z;
+
+
             projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
             view = camera.GetViewMatrix();
         }
@@ -410,7 +413,7 @@ int main()
                 tureShader->setFloat("material.shininess", material_arr.shininess);
                 tureShader->setMat4("lightSpaceMatrix", lightSpaceMatrix);
                 tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
-                tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction);
+                tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2]);
                 tureShader->setBool("light_PBR.point", false);
                 tureShader->setBool("ROUGH", true);
                 tureShader->setBool("sRGBtexture", true);

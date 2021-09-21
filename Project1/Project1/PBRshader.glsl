@@ -105,6 +105,8 @@ void main()
     float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
 
     vec3 lightDir = -normalize(light_PBR.direction);
+    
+
     vec3 halfVec = normalize(viewDir + lightDir);
 
     vec3 F0 = vec3(0.04); 

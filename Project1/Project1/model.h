@@ -75,7 +75,6 @@ public:
         // process ASSIMP's root node recursively
         processNode(scene->mRootNode, scene);
         this->loaded = true;
-        cout << meshes.size();
     }
 
     // processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
