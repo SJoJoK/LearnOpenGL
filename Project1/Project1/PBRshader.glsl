@@ -26,6 +26,7 @@ struct Light {
     vec3 direction;
     vec3 lightColor;
     mat4 lightSpaceMatrix;
+    sampler2D shadowMap;
 };
 in VS_OUT {
     vec3 FragPos;
@@ -34,7 +35,6 @@ in VS_OUT {
     mat3 TBN;
 } fs_in;
 out vec4 FragColor;
-uniform sampler2D shadowMap;
 uniform Light light_PBR;
 uniform Material material;
 uniform bool shadowOn;
@@ -148,16 +148,16 @@ float ShadowCalculation(Light dirLight, vec3 normal, vec4 fragPosLightSpace)
 {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = texture(shadowMap, projCoords.xy).r; 
+    float closestDepth = texture(dirLight.shadowMap, projCoords.xy).r; 
     float currentDepth = projCoords.z;
     float bias = max(0.05 * (1.0 - dot(normal, -dirLight.direction)), 0.005);
     float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    vec2 texelSize = 1.0 / textureSize(dirLight.shadowMap, 0);
     for(int x = -1; x <= 1; ++x)
     {
         for(int y = -1; y <= 1; ++y)
         {
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+            float pcfDepth = texture(dirLight.shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
             shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
         }    
     }
