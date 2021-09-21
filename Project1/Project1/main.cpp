@@ -167,7 +167,7 @@ int main()
     Shader bulbShader("vshader.glsl", "bulbshader.glsl");
     Shader depthShader("depthshader.glsl", "nullshader.glsl");
     Shader postShader("postVshader.glsl", "postFshader.glsl");
-    Shader* tureShader = &NPRShader;
+    Shader* tureShader = &PBRShader;
     unsigned int bulb_VBO;
     unsigned int bulb_VAO;
     glGenBuffers(1, &bulb_VBO);
@@ -187,18 +187,21 @@ int main()
     glm::mat4 lightSpaceMatrix;
     glm::mat4 lightSpaceMatrix1;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    stbi_set_flip_vertically_on_load(true);
     Model* ourModel = new Model();
     Material_Arr material_arr;
     PBRLight_Arr PBRlight_arr;
     PBRLight_Arr PBRlight_arr1;
     Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
-    bool sun_on = false;
     bool gamma_on = true;
     bool HDR_on = true;
     bool shadow_on = true;
+    bool sRGB_texture = true;
+    bool flip_y = true;
+
     int render_mode = RENDER;
     int model_choose = -1;
+
+    stbi_set_flip_vertically_on_load(flip_y);
 
     unsigned int depthMapFBO, depthMapFBO1;
     unsigned int depthMap, depthMap1;
@@ -239,16 +242,14 @@ int main()
             {
                 ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
                 ImGui::BulletText("PBRLight Attribute");
-                ImGui::Checkbox("pWhite Light", &PBRlight_arr.white);
-                ImGui::DragFloat3("pdirection ", PBRlight_arr.direction, 0.05f, -1, 1);
+                ImGui::Checkbox("pWhite Light (Around Y-axis)", &PBRlight_arr.white);
                 ImGui::SliderFloat("pRadius ", &(PBRlight_arr.radius), 0.f, 10.f);
                 ImGui::SliderFloat("pDegree ", &(PBRlight_arr.degree), 0.f, 360.f);
                 ImGui::SliderFloat("pHeight ", &(PBRlight_arr.height), 0.f, 10.f);
                 ImGui::DragFloat3("pColor ", PBRlight_arr.color, 0.5f, 0.f, 30.f);
                 ImGui::SliderFloat("pFlux ", &(PBRlight_arr.flux), 0.f, 30.f);
-                ImGui::BulletText("PBRLight1 Attribute");
+                ImGui::BulletText("PBRLight1 Attribute (Around Z-axis)");
                 ImGui::Checkbox("p1White Light", &PBRlight_arr1.white);
-                ImGui::DragFloat3("p1direction ", PBRlight_arr1.direction, 0.05f, -1, 1);
                 ImGui::SliderFloat("p1Radius ", &(PBRlight_arr1.radius), 0.f, 10.f);
                 ImGui::SliderFloat("p1Degree ", &(PBRlight_arr1.degree), 0.f, 360.f);
                 ImGui::SliderFloat("p1Height ", &(PBRlight_arr1.height), 0.f, 10.f);
@@ -282,6 +283,8 @@ int main()
             //Model Editor
             {
                 ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+                ImGui::Checkbox("Flip Y-axis", &flip_y);
+                ImGui::Checkbox("sRGB Texture", &sRGB_texture);
                 if (ImGui::Button("Model"))
                 {
                     fileDialog.Open();
@@ -299,7 +302,7 @@ int main()
                     model_choose = NORMAL;
 
                 }
-                if (ImGui::Button("Specular Map"))
+                if (ImGui::Button("Metallic Map"))
                 {
                     fileDialog.Open();
                     model_choose = SPECULAR;
@@ -317,7 +320,6 @@ int main()
 
                 }
                 fileDialog.Display();
-
                 if (fileDialog.HasSelected())
                 {
                     string ab_path = fileDialog.GetSelected().string();
@@ -356,6 +358,7 @@ int main()
                     }
                     fileDialog.ClearSelected();
                 }
+                stbi_set_flip_vertically_on_load(flip_y);
             }
             ImGui::Render();
         }
@@ -459,8 +462,7 @@ int main()
                     tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.flux* vec3(PBRlight_arr.color[0], PBRlight_arr.color[1], PBRlight_arr.color[2]));
                     tureShader->setBool("light_PBR.point", false);
 
-                    tureShader->setBool("ROUGH", true);
-                    tureShader->setBool("sRGBtexture", true);
+                    tureShader->setBool("sRGBTexture", sRGB_texture);
                     tureShader->setBool("gammaOn", gamma_on);
                     tureShader->setBool("HDROn", HDR_on);
                     tureShader->setBool("shadowOn", shadow_on);

@@ -36,10 +36,12 @@ in VS_OUT {
 } fs_in;
 out vec4 FragColor;
 uniform Light light_PBR;
+uniform Light light_PBR1;
 uniform Material material;
 uniform bool shadowOn;
 uniform bool gammaOn;
 uniform bool HDROn;
+uniform bool sRGBTexture;
 uniform vec3 viewPos;
 uniform int renderMode;
 float DistributionGGX(vec3 N, vec3 H, float roughness);
@@ -100,12 +102,11 @@ void main()
 
     vec3 ao = texture(material.texture_AO1,fs_in.TexCoord).rrr;
     vec3 albedo = texture(material.texture_diffuse1,fs_in.TexCoord).rgb;
-    albedo.rgb=pow(albedo.rgb,vec3(2.2));
+    if(sRGBTexture) albedo.rgb=pow(albedo.rgb,vec3(2.2));
     vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
     float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
 
     vec3 lightDir = -normalize(light_PBR.direction);
-    
 
     vec3 halfVec = normalize(viewDir + lightDir);
 
@@ -118,14 +119,10 @@ void main()
     vec3 ambient = vec3(0.03) * albedo * ao;
 
     Lo += lightShade(normal, viewDir, light_PBR, albedo, metallic, roughness, F0);
+    Lo += lightShade(normal, viewDir, light_PBR1, albedo, metallic, roughness, F0);
 
     vec3 result   = ambient + Lo;
 
-
-    if(shadowOn)
-    {
-        result = ambient + (1-shadow)*Lo;
-    }
     if(HDROn)
     {
         result = result / (result + vec3(1.0));
