@@ -42,7 +42,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
 unsigned int loadTexture(const char* path);
-GLFWwindow* my_init();
+void get_depth_buffer(unsigned int& FBO, unsigned int& depthMap);
 Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
@@ -56,29 +56,6 @@ struct Material_Arr
     float diffuse[3] = { 1.0f,0.5f,0.31f };
     float specular[3] = { 0.5f,0.5f,0.5f };
     float shininess = 32.0f;
-};
-
-
-struct PointLight_Arr {
-    vec3 position = vec3(10.f, 10.f, 10.f);
-    bool bulb_on = false;
-    float bulb_radius = 3.f;
-    float bulb_degree = 300.f;
-    float bulb_height = 1.0f;
-    float constant = 1.0f;
-    float linear = 0.09f;
-    float quadratic = 0.032f;
-    float ambient[3] = { 0.05f,0.05f,0.05f };
-    float diffuse[3] = { 0.8f,0.8f,0.8f };
-    float specular[3] = { 1.0f,1.0f,1.0f };
-};
-
-struct NPRLight_Arr {
-    float direction[3] = { 1.f,-1.f,-1.f };
-    float ambient[3] = { 0.35f,0.35f,0.35f };
-    float diffuse[3] = { 0.85f,0.85f,0.85f };
-    float specular[3] = { 1.f,1.f,1.f };
-    float bright = 0.5f;
 };
 
 struct PBRLight_Arr {
@@ -206,8 +183,6 @@ int main()
     stbi_set_flip_vertically_on_load(true);
     Model* ourModel = new Model();
     Material_Arr material_arr;
-    PointLight_Arr plight_arr;
-    NPRLight_Arr NPRlight_arr;
     PBRLight_Arr PBRlight_arr;
     Texture texture_albedo, texture_normal, texture_metallic, texture_roughness, texture_AO;
     bool NPR_white_dir_light = false;
@@ -224,19 +199,7 @@ int main()
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     GLuint depthMap, depthMap1;
 
-    glGenTextures(1, &depthMap);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    get_depth_buffer(depthMapFBO, depthMap);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -393,9 +356,6 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         if (ourModel->loaded)
         {
-            plight_arr.position = vec3(plight_arr.bulb_radius * cos(glm::radians(plight_arr.bulb_degree)),
-                plight_arr.bulb_height,
-                -1 * plight_arr.bulb_radius * sin(glm::radians(plight_arr.bulb_degree)));
             //Shadow Map
             {
                 // 1. 首选渲染深度贴图
@@ -609,4 +569,26 @@ unsigned int loadTexture(char const* path)
     }
 
     return textureID;
+}
+
+void get_depth_buffer(unsigned int& FBO, unsigned int& depthMap)
+{
+
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
