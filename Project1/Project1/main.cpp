@@ -211,7 +211,9 @@ int main()
     bool flip_y = true;
 
     int render_mode = RENDER;
+    int HDR_mode = 0;
     int model_choose = -1;
+    float exposure = 1.f;
 
     stbi_set_flip_vertically_on_load(flip_y);
 
@@ -268,6 +270,11 @@ int main()
                 ImGui::BulletText("Display Attribute");
                 ImGui::Checkbox("Gamma Correction ", &gamma_on);
                 ImGui::Checkbox("HDR ", &HDR_on);
+                if (ImGui::Selectable("Reinhard ", HDR_mode == 0))
+                    HDR_mode = 0;
+                if (ImGui::Selectable("By Exposure ", HDR_mode == 1))
+                    HDR_mode = 1;
+                ImGui::SliderFloat("Exposure ", &(exposure), 0.f, 10.f);
                 ImGui::Checkbox("Shadow ", &shadow_on);
                 ImGui::BulletText("Render Mode");
                 //Ñ¡ÔñäÖÈ¾·½Ê½
@@ -480,6 +487,8 @@ int main()
                     tureShader->setBool("sRGBTexture", sRGB_texture);
                     tureShader->setBool("gammaOn", gamma_on);
                     tureShader->setBool("HDROn", HDR_on);
+                    tureShader->setInt("HDRMode", HDR_mode);
+                    tureShader->setFloat("exposure", exposure);
                     tureShader->setBool("shadowOn", shadow_on);
                     tureShader->setInt("renderMode", render_mode);
                     // view/projection transformations

@@ -44,6 +44,8 @@ uniform bool HDROn;
 uniform bool sRGBTexture;
 uniform vec3 viewPos;
 uniform int renderMode;
+uniform int HDRMode;
+uniform float exposure;
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float k);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float k);
@@ -125,7 +127,14 @@ void main()
 
     if(HDROn)
     {
-        result = result / (result + vec3(1.0));
+        if(HDRMode == 0)
+        {
+            result = result / (result + vec3(1.0));
+        }
+        else if(HDRMode == 1) 
+        {
+            result = vec3(1.0) - exp(-result * exposure);
+        }
     }
     if(gammaOn)
     {
