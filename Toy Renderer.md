@@ -2,6 +2,8 @@
 
 孙嘉锴，3180105871
 
+仓库位置：[SJoJoK/LearnOpenGL (github.com)](https://github.com/SJoJoK/LearnOpenGL)
+
 ## 目录
 
 [TOC]
@@ -118,7 +120,7 @@ Gamma也叫灰度系数，每种显示设备都有自己的Gamma值，都不相�
 
 ![image-20210922160533733](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922160533733.png)
 
-在距离光源比较远的情况下，多个片段可能从深度贴图的同一个值中去采样，图片每个斜坡代表深度贴图一个单独的纹理像素，可以看到，多个片段从同一个深度值进行采样，这就导致在同一深度值进行采样的临近片段，有些可能被视为处于阴影中，而有些没有。
+在距离光源比较远的情况下，多个片段可能从阴影贴图的同一个值中去采样，图片每个斜坡代表阴影贴图一个单独的纹理像素，可以看到，多个片段从同一个深度值进行采样，这就导致在同一深度值进行采样的临近片段，有些可能被视为处于阴影中，而有些没有。
 
 我们可以采用一种非常Tricky的方法——阴影偏移，来解决上述问题
 
@@ -128,9 +130,63 @@ Gamma也叫灰度系数，每种显示设备都有自己的Gamma值，都不相�
 
 但是有些表面坡度很大，仍然会产生阴影失真，需要更大的偏移量，所以我们采用下述方法来动态修改偏移量
 
-```c++
+```glsl
 float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
 ```
+
+#### PCF
+
+同样受限于阴影贴图分辨率，当我们放大看阴影时，可能产生锯齿
+
+![image-20210922160953250](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922160953250.png)
+
+我们可以采用PCF（percentage-closer filtering）方法，在阴影贴图中多次采样，计算平均值，来作为阴影的值
+
+```glsl
+float shadow = 0.0;
+vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+for(int x = -1; x <= 1; ++x)
+{
+    for(int y = -1; y <= 1; ++y)
+    {
+        float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+        shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+    }    
+}
+shadow /= 9.0;
+```
+
+### HDR
+
+显示器只能显示0-1之间的值，而光照方程并没有数值上的限制，通过使片段的颜色超过1.0，我们有了一个更大的颜色范围，这也被称作HDR(High Dynamic Range, 高动态范围)
+
+#### 色调映射
+
+我们在HDR中计算得到的结果终究要映射到0-1之间，这就叫做色调映射
+
+有多种色调映射算法，在本次实验中，我采用了Reinhard色调映射和一个简单的曝光色调映射
+
+Reinhard:
+
+```glsl
+vec3 mapped = hdrColor / (hdrColor + vec3(1.0));
+```
+
+曝光色调映射
+
+```glsl
+vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+```
+
+### 抗锯齿
+
+抗锯齿有很多算法，这里主要介绍实验中使用的MSAA(MultiSample Anti-Aliasing)
+
+#### MSAA
+
+![image-20210922171624383](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922171624383.png)
+
+对于每个片段/像素，会进行多次采样，计算某三角形遮盖了该像素的多少个子样本，然后只在像素中心运行一次片段着色器。最后根据被遮盖的子样本的数量来决定最后的像素颜色
 
 ### 基于物理的着色
 
@@ -160,7 +216,7 @@ float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
 
 我们按照能量守恒的关系，首先计算镜面反射部分，它的值等于入射光线被反射的能量所占的百分比。然后折射光部分就可以直接由镜面反射部分计算得出：
 
-```c++
+```glsl
 float kS = 计算镜面部分...
 float kD = 1.0 - kS
 ```
@@ -255,5 +311,872 @@ $D$代表法向量分布函数(Normal **D**istribution Function)，$F$代表菲�
 
 * **AO**(Ambient Occlusion)：环境光遮蔽贴图或者说AO贴图为表面和周围潜在的几何图形指定了一个额外的阴影因子。比如如果我们有一个砖块表面，反照率纹理上的砖块裂缝部分应该没有任何阴影信息。然而AO贴图则会把那些光线较难逃逸出来的暗色边缘指定出来。
 
+## 源代码与分析
 
+由于工程代码量过大，此处仅展示并分析重要的功能性代码
 
+### 阴影
+
+```c++
+void get_depth_buffer(unsigned int& FBO, unsigned int& depthMap)
+{
+
+    glGenFramebuffers(1, &FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+```
+
+为阴影贴图建立buffer，附加阴影贴图为帧缓冲对象上附加的深度附件
+
+```c++
+glBindTexture(GL_TEXTURE_2D, depthMap);
+glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+glClear(GL_DEPTH_BUFFER_BIT);
+model = identity;
+depthShader.use();
+glm::mat4 lightProjection = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
+glm::mat4 lightView = glm::lookAt(//camera.Position,
+    -light_radius*glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
+    vec3(0.f),
+    vec3(0.f, 1.f, 0.f));
+lightSpaceMatrix = lightProjection * lightView;
+depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+depthShader.setMat4("model", model);
+ourModel->Draw(depthShader);
+glBindFramebuffer(GL_FRAMEBUFFER, 0);
+glBindTexture(GL_TEXTURE_2D, depthMap1);
+glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO1);
+glClear(GL_DEPTH_BUFFER_BIT);
+model = identity;
+depthShader.use();
+glm::mat4 lightProjection1 = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
+glm::mat4 lightView1 = glm::lookAt(//camera.Position,
+    -light_radius * glm::normalize(vec3(PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2])),
+    vec3(0.f),
+    vec3(0.f, 1.f, 0.f));
+lightSpaceMatrix1 = lightProjection1 * lightView1;
+depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix1);
+depthShader.setMat4("model", model);
+ourModel->Draw(depthShader);
+glBindFramebuffer(GL_FRAMEBUFFER, 0);
+glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+```
+
+从光源渲染，得到阴影贴图
+
+```c++
+if (render_mode == SHADOW1)
+{
+    postShader.use();
+    postShader.setInt("depthMap", 12);
+    postShader.setFloat("near_plane", near_plane);
+    postShader.setFloat("far_plane", far_plane);
+    glBindVertexArray(quad_VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+```
+
+通过后处理Shader，绘制长方形并从阴影贴图中采样，以显示阴影贴图，下为后处理片段着色器
+
+```glsl
+#version 330 core
+out vec4 color;
+in vec2 TexCoords;
+
+uniform sampler2D depthMap;
+uniform float near_plane;
+uniform float far_plane;
+
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));
+}
+
+void main()
+{             
+    float depthValue = texture(depthMap, TexCoords).r;
+    //color = vec4(vec3(LinearizeDepth(depthValue) / far_plane), 1.0); // perspective
+     color = vec4(vec3(depthValue), 1.0); // orthographic
+}
+```
+
+对于定向光产生的阴影贴图，直接采用其r通道值即可（因为阴影贴图是帧缓冲对象上附加的深度附件）
+
+### 抗锯齿
+
+```c++
+glfwWindowHint(GLFW_SAMPLES, 4);
+glEnable(GL_MULTISAMPLE);
+```
+
+直接使用glFW提供的多样本缓冲区
+
+### 顶点着色器
+
+```glsl
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec2 aTexCoord;
+layout (location = 3) in vec3 tangent;
+layout (location = 4) in vec3 bitangent;
+out VS_OUT {
+    vec3 FragPos;
+    vec4 FragPosLightSpace;
+    vec2 TexCoord;
+    mat3 TBN;
+} vs_out;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 normal_mat;
+uniform mat4 lightSpaceMatrix;
+void main()
+{
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+    vec3 T = normalize(vec3(model * vec4(tangent,   0.0)));
+    vec3 B = normalize(vec3(model * vec4(bitangent, 0.0)));
+    vec3 N = normalize(vec3(model * vec4(aNormal,    0.0)));
+    vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
+    vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
+    vs_out.TexCoord = aTexCoord;
+    vs_out.TBN = mat3(T, B, N);
+}
+```
+
+利用MVP矩阵得到裁剪空间坐标，同时需要计算TBN矩阵
+
+在过去只有单光源时，我将点在光源中的位置也放到了顶点着色器的输出中，但是后来改为多光源时，我直接将光源的VP矩阵设置为光的属性了
+
+### PBR着色
+
+```glsl
+float ShadowCalculation(Light dirLight, vec3 normal, vec4 fragPosLightSpace)
+{
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture(dirLight.shadowMap, projCoords.xy).r; 
+    float currentDepth = projCoords.z;
+    vec3 lightDir = -normalize(dirLight.direction);
+    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.0005);
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(dirLight.shadowMap, 0);
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(dirLight.shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    shadow /= 9.0;
+
+    return shadow;
+}
+```
+
+将片段对应的世界坐标位置变化到光源的视口坐标中，判断是否在阴影中，并设置阴影值
+
+需要注意的是，为了解决阴影失真与锯齿现象，需要增加bias，和多次采样
+
+```glsl
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+
+    float nom   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / denom;
+}
+float GeometrySchlickGGX(float NdotV, float k)
+{
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float k)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx1 = GeometrySchlickGGX(NdotV, k);
+    float ggx2 = GeometrySchlickGGX(NdotL, k);
+
+    return ggx1 * ggx2;
+}
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+```
+
+上述函数为Cook-Torrance镜面反射模型需要的几个函数，已在实验原理中阐明
+
+```glsl
+vec3 lightShade(vec3 normal, vec3 viewDir, Light light, vec3 albedo, vec3 metallic, float roughness, vec3 F0)
+{
+    vec4 FragPosLightSpace = light.lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
+
+    float shadow = ShadowCalculation(light,normal, FragPosLightSpace);
+
+    vec3 lightDir = -normalize(light.direction);
+    
+    vec3 halfVec = normalize(viewDir + lightDir);
+
+    float attenuation = 1.0;
+
+    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
+
+    vec3 Lo = vec3(0.0);
+
+    float NDF = DistributionGGX(normal, halfVec, roughness);       
+    float G   = GeometrySmith(normal, viewDir, lightDir, roughness);
+    vec3 nominator    = NDF * G * F;
+    float denominator = 4.0 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.001; 
+    vec3 specular     = nominator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+
+    kD *= 1.0 - metallic;
+
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    
+    vec3 radiance = light.lightColor * attenuation;
+    
+    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+
+    vec3 result   = Lo;
+
+    if(shadowOn)
+    {
+        result = (1-shadow)*Lo;
+    }
+
+    return result;
+}
+```
+
+通过光源信息、视线信息和其他参数进行着色，需要注意的一点是，由于菲涅尔方程已经计算得到镜面反射占比，所以不用再乘一次$K_s$
+
+```glsl
+#version 330 core
+#define RENDER 0
+#define NORMAL 1
+#define AO 2
+#define ALBEDO 3
+#define SPECULAR 4
+#define ROUGHNESS 5
+#define MODEL 0
+const float PI = 3.1415926;
+struct Material {
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+    sampler2D texture_diffuse1;
+    sampler2D texture_diffuse2;
+    sampler2D texture_specular1;
+    sampler2D texture_specular2;
+    sampler2D texture_normal1;
+    sampler2D texture_normal2;
+    sampler2D texture_AO1;
+    sampler2D texture_AO2;
+    sampler2D texture_roughness1;
+    sampler2D texture_roughness2;
+};
+struct Light {
+    vec3 direction;
+    vec3 lightColor;
+    mat4 lightSpaceMatrix;
+    sampler2D shadowMap;
+};
+in VS_OUT {
+    vec3 FragPos;
+    vec4 FragPosLightSpace;
+    vec2 TexCoord;
+    mat3 TBN;
+} fs_in;
+out vec4 FragColor;
+uniform Light light_PBR;
+uniform Light light_PBR1;
+uniform Material material;
+uniform bool shadowOn;
+uniform bool gammaOn;
+uniform bool HDROn;
+uniform bool sRGBTexture;
+uniform vec3 viewPos;
+uniform int renderMode;
+uniform int HDRMode;
+uniform float exposure;
+void main()
+{
+     vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
+    normal = normalize(normal * 2.0 - 1.0);   
+    normal = normalize(fs_in.TBN * normal);
+    vec3 viewDir = normalize(viewPos-fs_in.FragPos);
+
+    float shadow = ShadowCalculation(light_PBR, normal, fs_in.FragPosLightSpace);
+
+    vec3 ao = texture(material.texture_AO1,fs_in.TexCoord).rrr;
+    vec3 albedo = texture(material.texture_diffuse1,fs_in.TexCoord).rgb;
+    if(sRGBTexture) albedo.rgb=pow(albedo.rgb,vec3(2.2));
+    vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
+    float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
+
+    vec3 F0 = vec3(0.04); 
+    F0      = mix(F0, albedo, metallic);
+
+    vec3 Lo = vec3(0.0);
+
+    vec3 ambient = vec3(0.03) * albedo * ao;
+
+    Lo += lightShade(normal, viewDir, light_PBR, albedo, metallic, roughness, F0);
+    Lo += lightShade(normal, viewDir, light_PBR1, albedo, metallic, roughness, F0);
+
+    vec3 result   = ambient + Lo;
+
+    if(HDROn)
+    {
+        if(HDRMode == 0)
+        {
+            result = result / (result + vec3(1.0));
+        }
+        else if(HDRMode == 1) 
+        {
+            result = vec3(1.0) - exp(-result * exposure);
+        }
+    }
+    if(gammaOn)
+    {
+        float gamma = 2.2;
+        result.rgb = pow(result.rgb, vec3(1.0/gamma));
+    }
+    if(renderMode==RENDER)
+        FragColor = vec4(result,1.f);
+    else if(renderMode==NORMAL)
+        FragColor = vec4((normal+1)/2,1.f);
+    else if(renderMode==AO)
+        FragColor = vec4(texture(material.texture_AO1, fs_in.TexCoord).rrr,1);
+    else if(renderMode==ALBEDO)
+        FragColor = vec4(texture(material.texture_diffuse1, fs_in.TexCoord).rgb,1);
+    else if(renderMode==SPECULAR)
+        FragColor = vec4(texture(material.texture_specular1, fs_in.TexCoord).rgb,1);
+    else if(renderMode==ROUGHNESS)
+        FragColor = vec4(texture(material.texture_roughness1, fs_in.TexCoord).rrr,1);
+}
+```
+
+主函数与一些uniform参数定义，根据传入的参数来选择不同的渲染模式和渲染方法
+
+### 主函数
+
+仅讲解渲染循环部分
+
+```c++
+float currentFrame = glfwGetTime();
+deltaTime = currentFrame - lastFrame;
+lastFrame = currentFrame;
+//Input
+processInput(window);
+```
+
+处理输入输出
+
+```c++
+//ImGui
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    //Scene Editor
+    {
+        ImGui::Begin("Scene Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BulletText("PBRLight Attribute");
+        ImGui::Checkbox("pWhite Light (Around Y-axis)", &PBRlight_arr.white);
+        ImGui::SliderFloat("pRadius ", &(PBRlight_arr.radius), 0.f, 10.f);
+        ImGui::SliderFloat("pDegree ", &(PBRlight_arr.degree), 0.f, 360.f);
+        ImGui::SliderFloat("pHeight ", &(PBRlight_arr.height), 0.f, 10.f);
+        ImGui::DragFloat3("pColor ", PBRlight_arr.color, 0.5f, 0.f, 30.f);
+        ImGui::SliderFloat("pFlux ", &(PBRlight_arr.flux), 0.f, 30.f);
+        ImGui::BulletText("PBRLight1 Attribute (Around Z-axis)");
+        ImGui::Checkbox("p1White Light", &PBRlight_arr1.white);
+        ImGui::SliderFloat("p1Radius ", &(PBRlight_arr1.radius), 0.f, 10.f);
+        ImGui::SliderFloat("p1Degree ", &(PBRlight_arr1.degree), 0.f, 360.f);
+        ImGui::SliderFloat("p1Height ", &(PBRlight_arr1.height), 0.f, 10.f);
+        ImGui::DragFloat3("p1Color ", PBRlight_arr1.color, 0.5f, 0.f, 30.f);
+        ImGui::SliderFloat("p1Flux ", &(PBRlight_arr1.flux), 0.f, 30.f);
+        ImGui::BulletText("Display Attribute");
+        ImGui::Checkbox("Gamma Correction ", &gamma_on);
+        ImGui::Checkbox("HDR ", &HDR_on);
+        if (ImGui::Selectable("Reinhard ", HDR_mode == 0))
+            HDR_mode = 0;
+        if (ImGui::Selectable("By Exposure ", HDR_mode == 1))
+            HDR_mode = 1;
+        ImGui::SliderFloat("Exposure ", &(exposure), 0.f, 10.f);
+        ImGui::Checkbox("Shadow ", &shadow_on);
+        ImGui::BulletText("Render Mode");
+        {
+            if (ImGui::Selectable("Render", render_mode == RENDER))
+                render_mode = RENDER;
+            if (ImGui::Selectable("Albedo", render_mode == ALBEDO))
+                render_mode = ALBEDO;
+            if (ImGui::Selectable("Metallic", render_mode == SPECULAR))
+                render_mode = SPECULAR;
+            if (ImGui::Selectable("Roughness", render_mode == ROUGHNESS))
+                render_mode = ROUGHNESS;
+            if (ImGui::Selectable("Normal", render_mode == NORMAL))
+                render_mode = NORMAL;
+            if (ImGui::Selectable("AO", render_mode == AO))
+                render_mode = AO;
+            if (ImGui::Selectable("Mesh", render_mode == MESH))
+                render_mode = MESH;
+            if (ImGui::Selectable("Shadow Map 1", render_mode == SHADOW1))
+                render_mode = SHADOW1;
+            if (ImGui::Selectable("Shadow Map 2", render_mode == SHADOW2))
+                render_mode = SHADOW2;
+        }
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::End();
+    }
+    //Model Editor
+    {
+        ImGui::Begin("Model Editor", 0, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Checkbox("Flip Y-axis", &flip_y);
+        ImGui::Checkbox("sRGB Texture", &sRGB_texture);
+        if (ImGui::Button("Model"))
+        {
+            fileDialog.Open();
+            model_choose = MODEL;
+        }
+        if (ImGui::Button("Albedo Map"))
+        {
+            fileDialog.Open();
+            model_choose = ALBEDO;
+
+        }
+        if (ImGui::Button("Normal Map"))
+        {
+            fileDialog.Open();
+            model_choose = NORMAL;
+
+        }
+        if (ImGui::Button("Metallic Map"))
+        {
+            fileDialog.Open();
+            model_choose = SPECULAR;
+        }
+        if (ImGui::Button("Roughness Map"))
+        {
+            fileDialog.Open();
+            model_choose = ROUGHNESS;
+
+        }
+        if (ImGui::Button("AO Map"))
+        {
+            fileDialog.Open();
+            model_choose = AO;
+
+        }
+        fileDialog.Display();
+        if (fileDialog.HasSelected())
+        {
+            string ab_path = fileDialog.GetSelected().string();
+            switch (model_choose)
+            {
+                case MODEL :
+                    {
+                        ourModel->loadModel(ab_path);
+                        break;
+                    }
+                case ALBEDO:
+                    {
+                        texture_albedo.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                case METALLIC:
+                    {
+                        texture_metallic.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                case NORMAL:
+                    {
+                        texture_normal.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                case AO:
+                    {
+                        texture_AO.id = TextureFromFile(ab_path);
+                        break;
+                    }
+                case ROUGHNESS :
+                    {
+                        texture_roughness.id = TextureFromFile(ab_path);
+                        break;
+                    }
+            }
+            fileDialog.ClearSelected();
+        }
+        stbi_set_flip_vertically_on_load(flip_y);
+    }
+    ImGui::Render();
+}
+```
+
+设置ImGui，设置不同的参数，加载模型、贴图等
+
+```c++
+glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+```
+
+清理颜色缓冲与深度缓冲
+
+```c++
+{
+    PBRlight_arr.position = vec3(PBRlight_arr.radius * cos(glm::radians(PBRlight_arr.degree)),
+                                 PBRlight_arr.height,
+                                 -1 * PBRlight_arr.radius * sin(glm::radians(PBRlight_arr.degree)));
+    vec3 d = vec3(0.f) - PBRlight_arr.position;
+
+    PBRlight_arr1.position = vec3(PBRlight_arr1.height,
+                                  PBRlight_arr1.radius * sin(glm::radians(PBRlight_arr1.degree)),
+                                  PBRlight_arr1.radius * cos(glm::radians(PBRlight_arr1.degree)));
+    vec3 d1 = vec3(0.f) - PBRlight_arr1.position;
+
+    if (PBRlight_arr.white)
+    {
+        PBRlight_arr.color[0] = 1.f;
+        PBRlight_arr.color[1] = 1.f;
+        PBRlight_arr.color[2] = 1.f;
+    }
+    if (PBRlight_arr1.white)
+    {
+        PBRlight_arr1.color[0] = 1.f;
+        PBRlight_arr1.color[1] = 1.f;
+        PBRlight_arr1.color[2] = 1.f;
+    }
+
+    PBRlight_arr.direction[0] = d.x;
+    PBRlight_arr.direction[1] = d.y;
+    PBRlight_arr.direction[2] = d.z;
+
+    PBRlight_arr1.direction[0] = d1.x;
+    PBRlight_arr1.direction[1] = d1.y;
+    PBRlight_arr1.direction[2] = d1.z;
+
+    projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    view = camera.GetViewMatrix();
+        }
+```
+
+处理ImGui中获得的参数
+
+```c++
+{
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    model = identity;
+    depthShader.use();
+    glm::mat4 lightProjection = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
+    glm::mat4 lightView = glm::lookAt(//camera.Position,
+        -light_radius*glm::normalize(vec3(PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2])),
+        vec3(0.f),
+        vec3(0.f, 1.f, 0.f));
+    lightSpaceMatrix = lightProjection * lightView;
+    depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+    depthShader.setMat4("model", model);
+    ourModel->Draw(depthShader);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, depthMap1);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO1);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    model = identity;
+    depthShader.use();
+    glm::mat4 lightProjection1 = glm::ortho(-ortho_length, ortho_length, -ortho_length, ortho_length, near_plane, far_plane);
+    glm::mat4 lightView1 = glm::lookAt(//camera.Position,
+        -light_radius * glm::normalize(vec3(PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2])),
+        vec3(0.f),
+        vec3(0.f, 1.f, 0.f));
+    lightSpaceMatrix1 = lightProjection1 * lightView1;
+    depthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix1);
+    depthShader.setMat4("model", model);
+    ourModel->Draw(depthShader);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+```
+
+阴影贴图相关
+
+```c++
+tureShader->use();
+{
+    {
+        tureShader->setVec3("viewPos", camera.Position);
+
+        tureShader->setMat4("light_PBR1.lightSpaceMatrix", lightSpaceMatrix1);
+        tureShader->setVec3("light_PBR1.direction", PBRlight_arr1.direction[0], PBRlight_arr1.direction[1], PBRlight_arr1.direction[2]);
+        tureShader->setVec3("light_PBR1.lightColor", PBRlight_arr1.flux* vec3(PBRlight_arr1.color[0], PBRlight_arr1.color[1], PBRlight_arr1.color[2]));
+        tureShader->setBool("light_PBR1.point", false);
+
+        tureShader->setMat4("light_PBR.lightSpaceMatrix", lightSpaceMatrix);
+        tureShader->setVec3("light_PBR.direction", PBRlight_arr.direction[0], PBRlight_arr.direction[1], PBRlight_arr.direction[2]);
+        tureShader->setVec3("light_PBR.lightColor", PBRlight_arr.flux* vec3(PBRlight_arr.color[0], PBRlight_arr.color[1], PBRlight_arr.color[2]));
+        tureShader->setBool("light_PBR.point", false);
+
+        tureShader->setBool("sRGBTexture", sRGB_texture);
+        tureShader->setBool("gammaOn", gamma_on);
+        tureShader->setBool("HDROn", HDR_on);
+        tureShader->setInt("HDRMode", HDR_mode);
+        tureShader->setFloat("exposure", exposure);
+        tureShader->setBool("shadowOn", shadow_on);
+        tureShader->setInt("renderMode", render_mode);
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        view = camera.GetViewMatrix();
+        tureShader->setMat4("projection", projection);
+        tureShader->setMat4("view", view);
+        // render the loaded model
+        model = identity;
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));	// it's a bit too big for our scene, so scale it down
+        tureShader->setMat4("model", model);
+        tureShader->setMat4("normal_mat", transpose(inverse(model)));
+    }
+
+    {
+        glActiveTexture(GL_TEXTURE12);
+        tureShader->setInt("light_PBR.shadowMap", 12);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+
+        glActiveTexture(GL_TEXTURE13);
+        tureShader->setInt("light_PBR1.shadowMap", 13);
+        glBindTexture(GL_TEXTURE_2D, depthMap1);
+
+        glActiveTexture(GL_TEXTURE0 + ALBEDO);
+        tureShader->setInt("material.texture_diffuse1", ALBEDO);
+        glBindTexture(GL_TEXTURE_2D, texture_albedo.id);
+
+        glActiveTexture(GL_TEXTURE0 + METALLIC);
+        tureShader->setInt("material.texture_specular1", METALLIC);
+        glBindTexture(GL_TEXTURE_2D, texture_metallic.id);
+
+        glActiveTexture(GL_TEXTURE0 + ROUGHNESS);
+        tureShader->setInt("material.texture_roughness1", ROUGHNESS);
+        glBindTexture(GL_TEXTURE_2D, texture_roughness.id);
+
+        glActiveTexture(GL_TEXTURE0 + NORMAL);
+        tureShader->setInt("material.texture_normal1", NORMAL);
+        glBindTexture(GL_TEXTURE_2D, texture_normal.id);
+
+        glActiveTexture(GL_TEXTURE0 + AO);
+        tureShader->setInt("material.texture_AO1", AO);
+        glBindTexture(GL_TEXTURE_2D, texture_AO.id);
+    }
+}
+```
+
+设置Shader中的变量
+
+```c++
+if (render_mode == MESH)
+{
+    ourModel->Draw(*tureShader, GL_LINES);
+}
+else if (render_mode == SHADOW1)
+{
+    postShader.use();
+    postShader.setInt("depthMap", 12);
+    postShader.setFloat("near_plane", near_plane);
+    postShader.setFloat("far_plane", far_plane);
+    glBindVertexArray(quad_VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+else if (render_mode == SHADOW2)
+{
+    postShader.use();
+    postShader.setInt("depthMap", 13);
+    postShader.setFloat("near_plane", near_plane);
+    postShader.setFloat("far_plane", far_plane);
+    glBindVertexArray(quad_VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+else
+{
+    ourModel->Draw(*tureShader);
+
+}
+```
+
+根据选择的绘制模式的不同进行不同的绘制
+
+**注**：绘图函数被包装到Mesh类中了，如下
+
+```c++
+void setupMesh()
+{
+    // create buffers/arrays
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+    // load data into vertex buffers
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // A great thing about structs is that their memory layout is sequential for all its items.
+    // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
+    // again translates to 3/2 floats which translates to a byte array.
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
+
+    // set the vertex attribute pointers
+    // vertex Positions
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    // vertex normals
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+    // vertex texture coords
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+    // vertex tangent
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
+    // vertex bitangent
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
+    // ids
+    glEnableVertexAttribArray(5);
+    glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
+
+    // weights
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
+    glBindVertexArray(0);
+}
+```
+
+建立VAO
+
+```c++
+void Draw(Shader& shader, GLenum mode = GL_TRIANGLES)
+{
+    // draw mesh
+    glBindVertexArray(VAO);
+    glDrawElements(mode, indices.size(), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // always good practice to set everything back to defaults once configured.
+    glActiveTexture(GL_TEXTURE0);
+}
+```
+
+绑定VAO，绘制
+
+在渲染循环函数的最后：
+
+```c++
+ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+//PollEvents and Swap
+glfwPollEvents();
+glfwSwapBuffers(window);
+```
+
+绘制GUI，处理实践，交换Buffer
+
+## 实验结果
+
+我采用了SketchFab上一个比较复杂的模型来检测自己的渲染器
+
+[Survival Guitar Backpack (Low Poly)](https://sketchfab.com/3d-models/survival-guitar-backpack-low-poly-799f8c4511f84fab8c3f12887f7e6b36)
+
+![image-20210922181305022](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922181305022.png)
+
+可以看到，该物品有阴影，也有PBR工作流的所有贴图，很适合测试我们的渲染器
+
+* Base Color/Albedo
+
+![image-20210922181733796](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922181733796.png)
+
+* Metallic
+
+![image-20210922182138095](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922182138095.png)
+
+(可以发现，金属材质两者有些许色差，但我采用的确实是下载的贴图，片段着色器中的也是直接通过记录的纹理坐标进行采样来显示的，不清楚为什么会出现这种差异，这也略微影响了最终渲染的质量)
+
+* Roughness
+
+![image-20210922183101285](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922183101285.png)
+
+* Normal
+
+![image-20210922183130128](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922183130128.png)
+
+  可以看到SketchFab是直接显示了法线贴图，这没有任何意义，我显示的是处理后的法线，更有用
+
+* AO
+
+![image-20210922183424308](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922183424308.png)
+
+需要注意的是，SketchFab上渲染结果的阴影较淡（经过我自己测试，在没有灯光时，阴影部分颜色是比SketchFab上更深的，这说明SketchFab上不止有一个光源，但是PBR材质模型的表现是极其依赖光源的，在真实的渲染中，光源都会产生阴影，但是SketchFab上只有一个方向的阴影，所以我怀疑它增加了不会产生阴影的环境光，但这就与真实感渲染相悖了...所以我实现了两个可以产生阴影的定向光，实现更加真实的渲染）
+
+* Shadow Map 1
+
+![image-20210922184113122](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922184113122.png)
+
+* Shadow Map 2
+
+![image-20210922184127237](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922184127237.png)
+
+* 最终结果
+
+  光照设置如图所示，可进行调整
+
+  * 单光源
+
+    ![image-20210922184613441](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922184613441.png)
+
+    ![image-20210922185833370](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922185833370.png)
+
+    ![image-20210922184632009](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922184632009.png)
+
+    ![image-20210922190003913](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922190003913.png)
+
+  * 双光源
+
+    ![image-20210922190126598](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922190126598.png)
+
+    可以看到，出现了更加符合真实情况的双阴影
+
+    ![image-20210922190207584](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922190207584.png)

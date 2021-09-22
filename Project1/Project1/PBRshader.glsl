@@ -108,13 +108,8 @@ void main()
     vec3 metallic = texture(material.texture_specular1,fs_in.TexCoord).rrr;
     float roughness = texture(material.texture_roughness1,fs_in.TexCoord).r;
 
-    vec3 lightDir = -normalize(light_PBR.direction);
-
-    vec3 halfVec = normalize(viewDir + lightDir);
-
     vec3 F0 = vec3(0.04); 
     F0      = mix(F0, albedo, metallic);
-    vec3 F  = fresnelSchlick(max(dot(halfVec, viewDir), 0.0), F0);
 
     vec3 Lo = vec3(0.0);
 
@@ -160,7 +155,8 @@ float ShadowCalculation(Light dirLight, vec3 normal, vec4 fragPosLightSpace)
     projCoords = projCoords * 0.5 + 0.5;
     float closestDepth = texture(dirLight.shadowMap, projCoords.xy).r; 
     float currentDepth = projCoords.z;
-    float bias = max(0.05 * (1.0 - dot(normal, -dirLight.direction)), 0.005);
+    vec3 lightDir = -normalize(dirLight.direction);
+    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.0005);
     float shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(dirLight.shadowMap, 0);
     for(int x = -1; x <= 1; ++x)

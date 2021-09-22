@@ -277,7 +277,7 @@ int main()
                 ImGui::SliderFloat("Exposure ", &(exposure), 0.f, 10.f);
                 ImGui::Checkbox("Shadow ", &shadow_on);
                 ImGui::BulletText("Render Mode");
-                //选择渲染方式
+                //选锟斤拷锟斤拷染锟斤拷式
                 {
                     if (ImGui::Selectable("Render", render_mode == RENDER))
                         render_mode = RENDER;
@@ -429,7 +429,6 @@ int main()
             float ortho_length=3.5f, light_radius=3.5f;
             //Shadow Map
             {
-                // 1. 首选渲染深度贴图
                 glBindTexture(GL_TEXTURE_2D, depthMap);
                 glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
                 glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -446,7 +445,6 @@ int main()
                 depthShader.setMat4("model", model);
                 ourModel->Draw(depthShader);
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                // 2. 首选渲染深度贴图
                 glBindTexture(GL_TEXTURE_2D, depthMap1);
                 glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
                 glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO1);
@@ -463,7 +461,7 @@ int main()
                 depthShader.setMat4("model", model);
                 ourModel->Draw(depthShader);
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                // 3. 像往常一样渲染场景，但这次使用深度贴图
+                // 3. 锟斤拷锟斤拷锟斤拷一锟斤拷锟斤拷染锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟绞癸拷锟斤拷锟斤拷锟斤拷图
                 glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             }
