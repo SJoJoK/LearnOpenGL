@@ -2,7 +2,7 @@
 
 孙嘉锴，3180105871
 
-仓库位置：[SJoJoK/LearnOpenGL (github.com)](https://github.com/SJoJoK/LearnOpenGL)
+源代码位置：[SJoJoK/LearnOpenGL (github.com)](https://github.com/SJoJoK/LearnOpenGL)
 
 ## 目录
 
@@ -168,7 +168,21 @@ shadow /= 9.0;
 
 ![img](https://learnopengl-cn.github.io/img/05/04/normal_mapping_tbn_vectors.png)
 
+在使用Assimp导入模型时，可以自动计算切线与副切线，这很好，我们只需要把由经Model矩阵变化后的法向量、切线和副切线组成的TBN矩阵传入片段着色器，再用它变化采样得到的Normal值上即可
 
+当然，对于任意一个三角形，我们也可以自己计算他的切线和副切线：
+
+![img](https://learnopengl-cn.github.io/img/05/04/normal_mapping_surface_edges.png)
+
+![image-20210922193258035](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922193258035.png)
+
+两边同乘$\Delta$$U$$\Delta$$V$的逆矩阵
+
+![image-20210922193329243](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922193329243.png)
+
+这就可以计算出T和B了
+
+![image-20210922193443710](D:\Programs\LearnOpenGL\Toy Renderer.assets\image-20210922193443710.png)
 
 ### HDR
 
