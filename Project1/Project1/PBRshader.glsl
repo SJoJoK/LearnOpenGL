@@ -95,13 +95,9 @@ vec3 lightShade(vec3 normal, vec3 viewDir, Light light, vec3 albedo, vec3 metall
 }
 void main()
 {
-    vec3 T = normalize(vec3(fs_in.TBN[0]));
-    vec3 B = normalize(vec3(fs_in.TBN[1]));
-    vec3 N = normalize(vec3(fs_in.TBN[2]));
-    mat3 TBN = mat3(T,B,N);
     vec3 normal = texture(material.texture_normal1, fs_in.TexCoord).rgb;
     normal = normalize(normal * 2.0 - 1.0);   
-    normal = normalize(TBN * normal);
+    normal = normalize(fs_in.TBN * normal);
     vec3 viewDir = normalize(viewPos-fs_in.FragPos);
 
     float shadow = ShadowCalculation(light_PBR, normal, fs_in.FragPosLightSpace);

@@ -18,9 +18,10 @@ uniform mat4 lightSpaceMatrix;
 void main()
 {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
-    vec3 T = normalize(vec3(model * vec4(tangent,   0.0)));
-    vec3 B = normalize(vec3(model * vec4(bitangent, 0.0)));
-    vec3 N = normalize(vec3(model * vec4(aNormal,    0.0)));
+    vec3 T = normalize(vec3(model * vec4(tangent, 0.0)));
+    vec3 N = normalize(vec3(model * vec4(aNormal, 0.0)));
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T);
     vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
     vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
     vs_out.TexCoord = aTexCoord;
